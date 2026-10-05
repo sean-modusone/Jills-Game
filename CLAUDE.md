@@ -40,7 +40,7 @@ docs/                 project knowledge (this file's companions)
 
 ## Running and testing
 
-- Dev server: `.claude/launch.json` config **"game"** runs `server/static-server.ps1` on http://localhost:8765. Use http, not `file://`: the in-app browser disables localStorage on `file://`.
+- Dev server: `.claude/launch.json` config **"game"** runs `server/static-server.ps1` on http://localhost:8765 (Jill's PC). On Sean's Mac (no PowerShell) use **"game-mac"**: `python3 -m http.server` serving `game/` on the same port. Use http, not `file://`: the in-app browser disables localStorage on `file://`.
 - **Syntax check before claiming done** (Node 24 is installed on Jill's PC): extract the town game's IIFE and run `node --check` on it. A comment once swallowed a line and blanked the page.
 - **Screenshot every change before telling Jill it's done.** Sean's rule.
 - Debug handles: town `window.__rp` (actors, avatar, plats(), enter(key), go(x,z), act(plat), stand(), snapshot()); yard `window.__dbg`, `__pose`, `__fit`, `__loadErr` (check this first on a black screen).

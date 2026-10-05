@@ -6,6 +6,12 @@
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "server/static-server.ps1"],
       "port": 8765
+    },
+    {
+      "name": "game-mac",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "game"],
+      "port": 8765
     }
   ]
 }
