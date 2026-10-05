@@ -24,7 +24,8 @@
     "yard:perfect-jump":  { amount: 3,    dailyCap: null, what: "a perfect jump" },
     "yard:sat-the-spook": { amount: 2,    dailyCap: null, what: "staying on through a spook" },
     "yard:calm-past-dog": { amount: 1,    dailyCap: null, what: "riding calmly past the dog" },
-    "new-game:pick-up":   { amount: 1,    dailyCap: 50,   what: "picking up a coin in the new game (starter)" }
+    "new-game:pick-up":   { amount: 1,    dailyCap: 50,   what: "picking up a coin in the penguin game" },
+    "new-game:found-part":{ amount: 5,    dailyCap: 100,  what: "finding a lost penguin body part" }
   };
 
   const LOG_LENGTH = 50;

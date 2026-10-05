@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- Jill's new game. Starter: shared coins + a 3D scene (three.js r152).
+<!-- Jill's penguin battle game at the North Pole. three.js r152 + the shared kit.
      Rename this file, the title and the hub card once the game has a name. -->
 <title>My New Game ✨</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,25 +12,30 @@
 <link rel="stylesheet" href="design-system.css">
 <style>
   *{box-sizing:border-box;}
-  html,body{margin:0;height:100%;overflow:hidden;font-family:var(--font);color:var(--ink);
-    background:linear-gradient(180deg,var(--sky-top),var(--sky-bot));}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:var(--font);color:var(--ink);background:#dcecff;}
   canvas{display:block;}
-  .bar{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;}
+  .bar{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none;}
   .bar > *{pointer-events:auto;}
   .pill{background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:20px;padding:6px 14px;
-    box-shadow:0 4px 0 var(--ink);font-weight:600;font-size:16px;text-decoration:none;color:inherit;}
+    box-shadow:0 4px 0 var(--ink);font-weight:600;font-size:16px;text-decoration:none;color:inherit;white-space:nowrap;}
   .coins{background:var(--gold);}
+  #parts{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+  #parts span{background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:14px;padding:4px 10px;
+    font-size:14px;font-weight:600;opacity:.45;box-shadow:0 3px 0 var(--ink);}
+  #parts span.got{opacity:1;background:#bfe6ff;}
   #msg{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--paper);
     border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);padding:8px 16px;box-shadow:0 4px 0 var(--ink);
     font-size:15px;max-width:calc(100% - 32px);text-align:center;}
+  #msg:empty{display:none;}
 </style>
 </head>
 <body>
   <div class="bar">
     <a class="pill" href="index.html">🏠 Menu</a>
+    <div id="parts"></div>
     <span class="pill coins">🪙 <span id="coinCount">0</span></span>
   </div>
-  <div id="msg">Arrow keys or WASD to walk. Grab the coins! 🪙</div>
+  <div id="msg">Oh no! Your penguin lost its body parts! 🐧 Follow the blue lights to find them. Arrow keys or WASD to move.</div>
 
   <script src="account.js"></script>
   <!-- the shared kit: one save and one coin purse for every game (docs/shared-kit.md) -->
@@ -54,7 +59,7 @@
   JillWallet.onChange(showCoins);
 
   const msgEl = document.getElementById("msg");
-  let msgTimer = null;
+  let msgTimer = setTimeout(() => { msgEl.textContent = ""; }, 7000);
   function flash(text, ms){
     msgEl.textContent = text;
     clearTimeout(msgTimer);
@@ -62,86 +67,363 @@
   }
 
   /* ---- scene ---- */
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
   document.body.prepend(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+  scene.background = new THREE.Color(0xcfe6ff);
+  scene.fog = new THREE.Fog(0xdcecff, 35, 95);
+  const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 300);
   addEventListener("resize", () => {
     camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
   });
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x88aa77, 0.9));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.1);
-  sun.position.set(8, 14, 6); sun.castShadow = true;
-  scene.add(sun);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x9fc4e8, 0.95));
+  const sun = new THREE.DirectionalLight(0xfff6e8, 1.0);
+  sun.position.set(20, 30, 12); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, far: 100 });
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;   /* no jaggy shadow speckles on round things */
+  scene.add(sun, sun.target);
 
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48), new THREE.MeshStandardMaterial({ color: 0x8fd16a }));
+  const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 });
+  const SNOW = mat(0xf4f9ff), ICE = new THREE.MeshStandardMaterial({ color: 0xa8dcff, roughness: 0.2, metalness: 0.1, flatShading: true });
+
+  const MAP = 70;
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(MAP, 64), SNOW);
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
   scene.add(ground);
 
-  /* placeholder player — swap for the shared character once character.js exists */
-  const player = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.6, 6, 12), new THREE.MeshStandardMaterial({ color: 0xff6f91 }));
-  body.position.y = 0.65; body.castShadow = true;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), new THREE.MeshStandardMaterial({ color: 0xf2c9a0 }));
-  head.position.y = 1.45; head.castShadow = true;
-  player.add(body, head);
-  scene.add(player);
+  /* same map every time: a tiny seeded random */
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
-  /* coins to pick up — shows the shared purse working */
+  /* things you bump into: {x, z, r} */
+  const blockers = [];
+  function place(obj, x, z, r){ obj.position.set(x, 0, z); scene.add(obj); if(r) blockers.push({ x, z, r }); return obj; }
+  function at(o, x, y, z){ o.position.set(x, y, z); return o; }
+  function shadowy(g){ g.traverse(o => { if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } }); return g; }
+
+  function igloo(){
+    const g = new THREE.Group();
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), SNOW);
+    const door = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.6, 16, 1, false, 0, Math.PI), SNOW);
+    door.rotation.z = Math.PI / 2; door.rotation.y = Math.PI / 2; door.position.set(0, 0, 2.5);
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.7, 16, 0, Math.PI), mat(0x24324a));
+    hole.position.set(0, 0.01, 3.31);
+    g.add(dome, door, hole);
+    /* block lines like ice bricks */
+    for(let i = 1; i < 4; i++){
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(Math.cos(i * 0.36) * 2.62, 0.03, 4, 40), mat(0xc9ddf0));
+      ring.rotation.x = Math.PI / 2; ring.position.y = Math.sin(i * 0.36) * 2.62; g.add(ring);
+    }
+    return shadowy(g);
+  }
+  function iceberg(){
+    const g = new THREE.Group();
+    const s = 1.5 + rnd() * 2.5;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), ICE);
+    m.scale.y = 1.2 + rnd(); m.position.y = s * 0.6; m.rotation.y = rnd() * 6;
+    g.add(m); g.userData.r = s * 0.95;
+    return shadowy(g);
+  }
+  function pine(){
+    const g = new THREE.Group();
+    g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 1, 8), mat(0x7a5236)), 0, 0.5, 0));
+    for(let i = 0; i < 3; i++){
+      const w = 1.6 - i * 0.4;
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(w, 1.6, 9), mat(0x2f7d5b));
+      leaf.position.y = 1.4 + i * 0.9;
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(w * 0.7, 0.6, 9), SNOW);
+      cap.position.y = leaf.position.y + 0.55;
+      g.add(leaf, cap);
+    }
+    return shadowy(g);
+  }
+  function snowman(){
+    const g = new THREE.Group();
+    [[0.8, 0.8], [0.6, 1.9], [0.42, 2.8]].forEach(([r, y]) => g.add(at(new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), SNOW), 0, y, 0)));
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.45, 8), mat(0xff8a2a));
+    nose.rotation.x = Math.PI / 2; nose.position.set(0, 2.8, 0.55); g.add(nose);
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.45, 16), mat(0x2b2d42));
+    hat.position.y = 3.35; g.add(hat);
+    return shadowy(g);
+  }
+  function iceWall(){
+    const g = new THREE.Group();
+    const len = 4 + rnd() * 5;
+    const w = new THREE.Mesh(new THREE.BoxGeometry(len, 1.6, 0.8), ICE);
+    w.position.y = 0.8; g.add(w);
+    return shadowy(g);
+  }
+
+  /* the North Pole itself, in the middle */
+  const pole = new THREE.Group();
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 6, 16), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+  stick.position.y = 3; pole.add(stick);
+  for(let i = 0; i < 6; i++){
+    const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.4, 16), mat(0xe8384f));
+    stripe.position.y = 0.6 + i * 0.95; pole.add(stripe);
+  }
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), new THREE.MeshStandardMaterial({ color: 0xffc53d, metalness: 0.5, roughness: 0.3 }));
+  ball.position.y = 6.3; pole.add(ball);
+  place(shadowy(pole), 0, -6, 0.6);
+
+  /* a frozen lake — slippy, for later */
+  const lake = new THREE.Mesh(new THREE.CircleGeometry(9, 40), new THREE.MeshStandardMaterial({ color: 0x9fd4f5, roughness: 0.05, metalness: 0.2 }));
+  lake.rotation.x = -Math.PI / 2; lake.position.set(26, 0.02, 20); lake.receiveShadow = true;
+  scene.add(lake);
+
+  /* scatter the obstacles, keeping the start spot and the lake clear */
+  function freeSpot(minGap){
+    for(let tries = 0; tries < 200; tries++){
+      const a = rnd() * Math.PI * 2, d = 12 + rnd() * (MAP - 18);
+      const x = Math.cos(a) * d, z = Math.sin(a) * d;
+      if(Math.hypot(x - 26, z - 20) < 11) continue;
+      if(blockers.some(b => Math.hypot(b.x - x, b.z - z) < b.r + minGap)) continue;
+      return [x, z];
+    }
+    return null;
+  }
+  for(let i = 0; i < 9;  i++){ const s = freeSpot(5); if(s) place(igloo(), s[0], s[1], 2.7).rotation.y = rnd() * 6; }
+  for(let i = 0; i < 14; i++){ const s = freeSpot(3); if(s){ const b = iceberg(); place(b, s[0], s[1], b.userData.r); } }
+  for(let i = 0; i < 40; i++){ const s = freeSpot(2); if(s) place(pine(), s[0], s[1], 0.9); }
+  for(let i = 0; i < 8;  i++){ const s = freeSpot(2); if(s) place(snowman(), s[0], s[1], 0.9).rotation.y = rnd() * 6; }
+  for(let i = 0; i < 10; i++){
+    const s = freeSpot(4); if(!s) continue;
+    const w = iceWall(); place(w, s[0], s[1], 0).rotation.y = rnd() * 6;
+    /* a wall is long: block it with a row of little circles */
+    const len = w.children[0].geometry.parameters.width, ang = w.rotation.y;
+    for(let t = -len / 2; t <= len / 2; t += 0.8) blockers.push({ x: s[0] + Math.cos(ang) * t, z: s[1] - Math.sin(ang) * t, r: 0.7 });
+  }
+
+  /* falling snow */
+  const flakes = new THREE.BufferGeometry();
+  const N = 1500, fp = new Float32Array(N * 3);
+  for(let i = 0; i < N; i++){ fp[i*3] = (Math.random() - 0.5) * 80; fp[i*3+1] = Math.random() * 30; fp[i*3+2] = (Math.random() - 0.5) * 80; }
+  flakes.setAttribute("position", new THREE.BufferAttribute(fp, 3));
+  const snow = new THREE.Points(flakes, new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.85 }));
+  scene.add(snow);
+
+  /* ---- the penguin: a little skeleton of joints, each body part hangs off one ----
+     Built in code (not a downloaded model) so every part can come off and go back. */
+  const BLACK = mat(0x1e2433), WHITE = mat(0xffffff), ORANGE = mat(0xff9a1f);
+  function makePenguin(){
+    const root = new THREE.Group();
+    const hips = new THREE.Group(); hips.position.y = 0.3; root.add(hips);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 18), BLACK);
+    body.scale.set(1, 1.3, 0.9); body.position.y = 0.55;
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.44, 24, 18), WHITE);
+    belly.scale.set(0.86, 1.12, 0.5); belly.position.set(0, 0.5, 0.24);
+    hips.add(body, belly);
+
+    const joints = {
+      head:   at(new THREE.Group(), 0, 1.2, 0),
+      flipL:  at(new THREE.Group(),  0.48, 0.85, 0),
+      flipR:  at(new THREE.Group(), -0.48, 0.85, 0),
+      footL:  at(new THREE.Group(),  0.2, -0.28, 0.1),
+      footR:  at(new THREE.Group(), -0.2, -0.28, 0.1)
+    };
+    for(const k in joints) hips.add(joints[k]);
+    return { root, hips, joints, parts: {} };
+  }
+  /* each part is its own little model so it can sit on the map on its own */
+  const PART_INFO = {
+    head:  { label: "Head",          icon: "🐧" },
+    flipL: { label: "Left flipper",  icon: "🪽" },
+    flipR: { label: "Right flipper", icon: "🪽" },
+    footL: { label: "Left foot",     icon: "🦶" },
+    footR: { label: "Right foot",    icon: "🦶" }
+  };
+  function makePart(k){
+    const g = new THREE.Group();
+    if(k === "head"){
+      const h = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 18), BLACK); h.position.y = 0.25;
+      const face = new THREE.Mesh(new THREE.SphereGeometry(0.26, 20, 14), WHITE); face.scale.set(1, 0.85, 0.6); face.position.set(0, 0.22, 0.17);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.26, 12), ORANGE); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.18, 0.4);
+      g.add(h, face, beak);
+      [0.1, -0.1].forEach(x => {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), BLACK); eye.position.set(x, 0.3, 0.33);
+        const shine = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), WHITE); shine.position.set(x + 0.02, 0.32, 0.38);
+        g.add(eye, shine);
+      });
+    } else if(k === "flipL" || k === "flipR"){
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), BLACK);
+      f.scale.set(0.14, 0.7, 0.32); f.position.y = -0.32;
+      g.add(f);
+    } else {
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 10), ORANGE);
+      f.scale.set(0.34, 0.12, 0.55); f.position.set(0, 0, 0.1);
+      g.add(f);
+    }
+    return shadowy(g);
+  }
+
+  const me = makePenguin();
+  shadowy(me.root);
+  scene.add(me.root);
+  function attach(p, k){
+    const part = makePart(k);
+    p.joints[k].add(part); p.parts[k] = part;
+  }
+
+  /* hide the parts around the map, each with a blue light beam so it can be found */
+  const lost = [];
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0x5cc8ff, transparent: true, opacity: 0.35, depthWrite: false });
+  Object.keys(PART_INFO).forEach(k => {
+    const s = freeSpot(1.5) || [10, 10];
+    const g = new THREE.Group();
+    const part = makePart(k);
+    part.position.y = 1; part.scale.setScalar(1.6);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 18, 16, 1, true), beamMat);
+    beam.position.y = 9;
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.1, 24), ICE);
+    g.add(part, beam, pad);
+    g.position.set(s[0], 0, s[1]);
+    scene.add(g);
+    lost.push({ k, g, part });
+  });
+
+  /* the parts bar along the top */
+  const partsEl = document.getElementById("parts");
+  function showParts(){
+    partsEl.innerHTML = "";
+    for(const k in PART_INFO){
+      const s = document.createElement("span");
+      s.textContent = PART_INFO[k].icon + " " + PART_INFO[k].label;
+      if(me.parts[k]) s.className = "got";
+      partsEl.appendChild(s);
+    }
+  }
+  showParts();
+
+  /* coins to pick up */
   const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.08, 24);
   const coinMat = new THREE.MeshStandardMaterial({ color: 0xffc53d, metalness: 0.4, roughness: 0.3 });
   const coins = [];
   function dropCoin(){
+    const s = freeSpot(1); if(!s) return;
     const c = new THREE.Mesh(coinGeo, coinMat);
-    const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 18;
-    c.position.set(Math.cos(a) * r, 0.7, Math.sin(a) * r);
-    c.rotation.x = Math.PI / 2; c.castShadow = true;
+    c.position.set(s[0], 0.7, s[1]); c.rotation.x = Math.PI / 2; c.castShadow = true;
     scene.add(c); coins.push(c);
   }
-  for(let i = 0; i < 8; i++) dropCoin();
+  for(let i = 0; i < 12; i++) dropCoin();
 
   /* debug handle for the console and tests */
-  window.__ng = { THREE, scene, camera, player, coins };
+  window.__ng = { THREE, scene, camera, me, lost, coins, blockers };
 
   /* ---- controls ---- */
   const keys = {};
-  addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; });
+  addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if(e.key === " ") e.preventDefault(); });
   addEventListener("keyup",   e => { keys[e.key.toLowerCase()] = false; });
+
+  function bump(pos){
+    for(const b of blockers){
+      const dx = pos.x - b.x, dz = pos.z - b.z, d = Math.hypot(dx, dz), min = b.r + 0.45;
+      if(d < min && d > 0.0001){ pos.x = b.x + dx / d * min; pos.z = b.z + dz / d * min; }
+    }
+    const far = Math.hypot(pos.x, pos.z);
+    if(far > MAP - 1){ pos.x *= (MAP - 1) / far; pos.z *= (MAP - 1) / far; }
+  }
 
   /* ---- loop ---- */
   const clock = new THREE.Clock();
+  let walkT = 0, sliding = 0;
+  const camPos = new THREE.Vector3(0, 8, 12);
   renderer.setAnimationLoop(() => {
-    const dt = Math.min(clock.getDelta(), 0.05);
+    const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+    const feet = (me.parts.footL ? 1 : 0) + (me.parts.footR ? 1 : 0);
+    const flippers = me.parts.flipL && me.parts.flipR;
+
     const dx = (keys.arrowright || keys.d ? 1 : 0) - (keys.arrowleft || keys.a ? 1 : 0);
     const dz = (keys.arrowdown  || keys.s ? 1 : 0) - (keys.arrowup   || keys.w ? 1 : 0);
-    if(dx || dz){
+    const moving = !!(dx || dz);
+    /* no feet: slow little hops. Both flippers: hold Space to belly-slide */
+    sliding = (moving && flippers && keys[" "]) ? Math.min(1, sliding + dt * 4) : Math.max(0, sliding - dt * 4);
+    const speed = sliding > 0.5 ? 10 : [2.2, 3.4, 5.5][feet];
+    if(moving){
       const len = Math.hypot(dx, dz);
-      player.position.x += dx / len * 5 * dt;
-      player.position.z += dz / len * 5 * dt;
-      player.rotation.y = Math.atan2(dx, dz);
-      const far = Math.hypot(player.position.x, player.position.z);
-      if(far > 29){ player.position.x *= 29 / far; player.position.z *= 29 / far; }
+      me.root.position.x += dx / len * speed * dt;
+      me.root.position.z += dz / len * speed * dt;
+      const want = Math.atan2(dx, dz);
+      let turn = want - me.root.rotation.y;
+      turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+      me.root.rotation.y += turn * Math.min(1, dt * 12);
+      bump(me.root.position);
+      walkT += dt * (feet ? 11 : 7);
     }
 
-    for(let i = coins.length - 1; i >= 0; i--){
-      const c = coins[i];
-      c.rotation.z += dt * 3;
-      if(c.position.distanceTo(player.position.clone().setY(0.7)) < 0.8){
-        scene.remove(c); coins.splice(i, 1);
-        const got = JillWallet.earn("new-game:pick-up");
-        if(got) flash("+" + got + " 🪙");
-        setTimeout(dropCoin, 1500);
+    /* waddle */
+    const step = Math.sin(walkT);
+    const j = me.joints;
+    if(feet){
+      me.hips.position.y = 0.3 + (moving ? Math.abs(step) * 0.06 : 0);
+      me.hips.rotation.z = moving ? step * 0.14 : 0;
+      j.footL.rotation.x = moving ? Math.max(0, step) * -0.6 : 0;
+      j.footR.rotation.x = moving ? Math.max(0, -step) * -0.6 : 0;
+    } else {
+      /* hopping on its tummy with no feet */
+      me.hips.position.y = 0.3 + (moving ? Math.abs(Math.sin(walkT * 0.9)) * 0.35 : 0);
+      me.hips.rotation.z = 0;
+    }
+    j.flipL.rotation.z = (moving ? 0.35 + Math.sin(walkT * 1.3) * 0.25 : 0.12) + sliding * 1.2;
+    j.flipR.rotation.z = -j.flipL.rotation.z;
+    me.hips.rotation.x = sliding * 1.35;
+    me.hips.position.y -= sliding * 0.2;
+    j.head.rotation.x = -sliding * 1.1;
+
+    /* find a lost part */
+    for(let i = lost.length - 1; i >= 0; i--){
+      const L = lost[i];
+      L.part.rotation.y += dt * 1.5;
+      L.part.position.y = 1 + Math.sin(t * 2 + i) * 0.2;
+      if(Math.hypot(L.g.position.x - me.root.position.x, L.g.position.z - me.root.position.z) < 1.3){
+        scene.remove(L.g); lost.splice(i, 1);
+        attach(me, L.k); shadowy(me.root); showParts();
+        const got = JillWallet.earn("new-game:found-part");
+        const hint = { footL: "Feet make you faster!", footR: "Feet make you faster!",
+                       flipL: "Find both flippers to belly-slide (hold Space)!", flipR: "Find both flippers to belly-slide (hold Space)!",
+                       head: "Now you can see where you're going!" }[L.k];
+        if(!lost.length) flash("🎉 Your penguin is all back together! +" + got + " 🪙", 5000);
+        else flash("Found the " + PART_INFO[L.k].label.toLowerCase() + "! +" + got + " 🪙 " + hint, 4000);
       }
     }
 
-    camera.position.set(player.position.x, 7, player.position.z + 10);
-    camera.lookAt(player.position.x, 1, player.position.z);
+    /* coins */
+    for(let i = coins.length - 1; i >= 0; i--){
+      const c = coins[i];
+      c.rotation.z += dt * 3;
+      if(Math.hypot(c.position.x - me.root.position.x, c.position.z - me.root.position.z) < 0.9){
+        scene.remove(c); coins.splice(i, 1);
+        const got = JillWallet.earn("new-game:pick-up");
+        if(got) flash("+" + got + " 🪙");
+        setTimeout(dropCoin, 3000);
+      }
+    }
+
+    /* snow drifts down around you */
+    const pa = flakes.attributes.position.array;
+    for(let i = 0; i < N; i++){
+      pa[i*3+1] -= dt * (1.2 + (i % 5) * 0.2);
+      if(pa[i*3+1] < 0) pa[i*3+1] = 30;
+    }
+    flakes.attributes.position.needsUpdate = true;
+    snow.position.set(me.root.position.x, 0, me.root.position.z);
+
+    /* sun's shadows follow you */
+    sun.position.set(me.root.position.x + 20, 30, me.root.position.z + 12);
+    sun.target.position.copy(me.root.position);
+
+    /* camera: no head = it's a bit foggy! */
+    scene.fog.far = me.parts.head ? 95 : 40;
+    camPos.set(me.root.position.x, 7.5, me.root.position.z + 11);
+    camera.position.lerp(camPos, Math.min(1, dt * 5));
+    camera.lookAt(me.root.position.x, 1.2, me.root.position.z);
     renderer.render(scene, camera);
   });
   </script>
