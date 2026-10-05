@@ -1,0 +1,65 @@
+/* =========================================================
+   JILL'S GAME — "TOYBOX" DESIGN SYSTEM
+   One look for the whole game: Fredoka type, ink outlines,
+   hard sticker shadows, one sky, one selected signal.
+   Load in every screen:
+     <link rel="preconnect" href="https://fonts.googleapis.com">
+     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..600&display=swap">
+     <link rel="stylesheet" href="design-system.css">
+   ========================================================= */
+
+:root{
+  /* --- palette --- */
+  --ink:       #33305e;   /* text, outlines, shadows */
+  --paper:     #fffdf8;   /* cards / panels */
+  --tile:      #fff8ef;   /* resting tiles */
+  --accent:    #ff6f91;   /* coral  — primary action */
+  --accent-soft:#ffe3ea;  /* coral tint — selected fill */
+  --accent2:   #2ec4b6;   /* aqua   — ON / active */
+  --gold:      #ffc53d;   /* sunshine — special / coins */
+  --lilac:     #a78bfa;   /* accent pop */
+  --panel:     var(--paper);
+  --shadow:    var(--ink);/* solid-ink sticker shadow */
+
+  /* --- one sky (used across every screen) --- */
+  --sky-top:   #fff3dd;
+  --sky-bot:   #cfe9ff;
+  --sky:       var(--sky-top);
+
+  /* --- shape --- */
+  --r-card: 22px;
+  --r-tile: 16px;
+  --r-btn:  14px;
+  --stroke: 3px;
+  --lift:   6px;          /* sticker-shadow depth */
+
+  --font: "Fredoka","Trebuchet MS",system-ui,sans-serif;
+}
+
+/* --- shared "go home" button, dropped on every game screen --- */
+.ds-home{
+  position:fixed; top:12px; left:12px; z-index:120;
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--font); font-size:15px; font-weight:600;
+  color:var(--ink); text-decoration:none;
+  background:var(--paper);
+  border:var(--stroke) solid var(--ink);
+  border-radius:var(--r-btn);
+  padding:8px 14px;
+  box-shadow:0 4px 0 var(--ink);
+  cursor:pointer;
+  transition:transform .08s;
+}
+.ds-home:hover{ transform:translateY(-2px); }
+.ds-home:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--ink); }
+
+/* the little ✓ badge that marks the ONE selected thing */
+.ds-check{
+  position:absolute; top:-8px; right:-8px;
+  width:20px; height:20px; border-radius:50%;
+  background:var(--accent); color:#fff;
+  font-size:11px; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--ink);
+  pointer-events:none;
+}

@@ -1,0 +1,21 @@
+# --- Kept on Jill's PC, not in the repo ---------------------------------
+# Sketchfab/poly.pizza source downloads (~290 MB of zips). The game uses the
+# converted copies in game/assets/. Keep one archive of these outside git.
+source-models/
+*.zip
+
+# Old copies of the games and assets (superseded; the live versions are in game/)
+assets-backup/
+backups/
+game-design-update/
+jills-game-pack/
+
+# Machine-local Claude Code settings (permissions differ per computer)
+.claude/settings.local.json
+
+# OS / editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log
+node_modules/

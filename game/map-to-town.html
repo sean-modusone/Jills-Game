@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Map → Town (Jill's Game · Prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..600&display=swap">
+<link rel="stylesheet" href="design-system.css">
+<style>
+  *{box-sizing:border-box;-webkit-user-select:none;user-select:none;}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:var(--font);color:var(--ink);background:#cdeeff;}
+  #stage{position:absolute;inset:0;}
+  #stage canvas{display:block;}
+
+  #searchBar{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:18px;box-shadow:0 var(--lift) 0 var(--ink);padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:88vw;z-index:10;}
+  #searchBar input{font-family:inherit;font-size:15px;padding:9px 12px;border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);width:240px;max-width:50vw;color:var(--ink);outline:none;}
+  .btn{font-family:inherit;font-weight:600;color:var(--ink);border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);cursor:pointer;padding:9px 14px;font-size:15px;background:var(--paper);box-shadow:0 4px 0 var(--ink);transition:transform .08s;}
+  .btn:hover{transform:translateY(-2px);}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink);}
+  .btn.go{background:var(--accent);color:#fff;}
+  .presets{position:absolute;top:70px;left:50%;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;z-index:10;max-width:94vw;}
+  .presets .btn{background:var(--paper);font-size:13px;padding:6px 12px;box-shadow:0 3px 0 var(--ink);}
+
+  #status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--ink);color:#fff;padding:14px 22px;border-radius:16px;font-size:16px;font-weight:600;z-index:20;display:none;text-align:center;max-width:80vw;box-shadow:0 var(--lift) 0 rgba(0,0,0,.25);}
+  #status .spin{display:inline-block;animation:sp 1s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+
+  #help{position:absolute;bottom:12px;left:12px;background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:var(--r-tile);padding:8px 12px;font-size:13px;box-shadow:0 4px 0 var(--ink);z-index:10;max-width:230px;pointer-events:none;}
+  #attrib{position:absolute;bottom:8px;right:10px;background:rgba(255,255,255,.85);border-radius:8px;padding:3px 8px;font-size:11px;z-index:10;}
+  #attrib a{color:#2b6fb3;text-decoration:none;}
+</style>
+</head>
+<body>
+  <a class="ds-home" href="index.html">🏠 Home</a>
+  <div id="stage"></div>
+
+  <div id="searchBar">
+    <input id="place" type="text" placeholder="Type a place… e.g. your street, a town, a landmark" />
+    <button class="btn go" id="goBtn">🏙️ Recreate!</button>
+  </div>
+  <div class="presets" id="presets"></div>
+
+  <div id="status"></div>
+  <div id="help">🎮 <b>Move:</b> Arrows / WASD<br>🦘 <b>Jump:</b> Space<br>🔭 <b>Camera:</b> Q / E or drag<br>Type a real place above and watch it rebuilt!</div>
+  <div id="attrib">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  (function(){
+  "use strict";
+
+  /* ---------- toy 3D helpers (matching the game style) ---------- */
+  function toy(c,o){o=o||{};return new THREE.MeshStandardMaterial({color:c,roughness:o.rough!=null?o.rough:0.9,metalness:0,emissive:o.emissive||0x000000,emissiveIntensity:o.emissive?0.6:0});}
+  const geoCache={};
+  function roundedBoxGeo(w,h,d,r){r=Math.max(0.001,Math.min(r,Math.min(w,h,d)/2-0.001));const k=[w,h,d,r].join(",");if(geoCache[k])return geoCache[k];
+    const eps=1e-5,rad=r-eps,s=new THREE.Shape();
+    s.absarc(eps,eps,eps,-Math.PI/2,-Math.PI,true);s.absarc(eps,h-rad*2,eps,Math.PI,Math.PI/2,true);
+    s.absarc(w-rad*2,h-rad*2,eps,Math.PI/2,0,true);s.absarc(w-rad*2,eps,eps,0,-Math.PI/2,true);
+    const g=new THREE.ExtrudeGeometry(s,{depth:d-r*2,bevelEnabled:true,bevelSegments:2,steps:1,bevelSize:rad,bevelThickness:r,curveSegments:2});g.center();geoCache[k]=g;return g;}
+  function rbox(w,h,d,c,r){const m=new THREE.Mesh(roundedBoxGeo(w,h,d,r==null?0.16:r),toy(c));m.castShadow=true;m.receiveShadow=true;return m;}
+  function sph(r,c){const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),toy(c));m.castShadow=true;return m;}
+  function at(o,x,y,z){o.position.set(x,y,z);return o;}
+
+  /* ---------- scene ---------- */
+  const stage=document.getElementById("stage");
+  let renderer,scene,camera,clock,cityGroup,avatar;
+  const keys={};let camAngle=0,dragging=false,lastX=0,velY=0,grounded=true,walk=0;
+
+  function init(){
+    renderer=new THREE.WebGLRenderer({antialias:true});
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    if(THREE.sRGBEncoding!==undefined)renderer.outputEncoding=THREE.sRGBEncoding;
+    if(THREE.ACESFilmicToneMapping!==undefined){renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;}
+    stage.appendChild(renderer.domElement);
+    scene=new THREE.Scene();scene.background=new THREE.Color(0xcdeeff);scene.fog=new THREE.Fog(0xcdeeff,260,640);
+    camera=new THREE.PerspectiveCamera(55,1,0.1,2000);
+    scene.add(new THREE.HemisphereLight(0xfff6e0,0x9fd0a0,0.95));
+    scene.add(new THREE.AmbientLight(0xffffff,0.18));
+    const sun=new THREE.DirectionalLight(0xffffff,1.0);sun.position.set(200,320,160);sun.castShadow=true;
+    sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.near=1;sun.shadow.camera.far=1000;
+    const d=320;sun.shadow.camera.left=-d;sun.shadow.camera.right=d;sun.shadow.camera.top=d;sun.shadow.camera.bottom=-d;sun.shadow.bias=-0.0004;
+    scene.add(sun);scene.add(sun.target);
+    cityGroup=new THREE.Group();scene.add(cityGroup);
+    // big ground
+    const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),toy(0x86c98a,{rough:1}));
+    ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+    avatar=buildKid();avatar.group.position.set(0,0,0);scene.add(avatar.group);
+    clock=new THREE.Clock();resize();animate();
+  }
+  function buildKid(){const g=new THREE.Group(),legs=[];
+    [-0.28,0.28].forEach(x=>{const l=rbox(0.36,0.95,0.36,0x6a5cff,0.16);l.position.set(x,0.48,0);g.add(l);legs.push(l);});
+    g.add(at(rbox(1.0,1.0,0.6,0xff6fa5,0.26),0,1.4,0));
+    g.add(at(rbox(0.26,0.9,0.26,0xff6fa5,0.12),-0.66,1.4,0));
+    g.add(at(rbox(0.26,0.9,0.26,0xff6fa5,0.12),0.66,1.4,0));
+    g.add(at(sph(0.44,0xf6c9a8),0,2.18,0));
+    g.add(at(rbox(0.82,0.42,0.82,0x6b3f1d,0.18),0,2.45,0));
+    return {group:g,legs};}
+
+  /* ---------- geo projection ---------- */
+  let lat0=0,lon0=0,mLat=110540,mLon=111320;
+  function setOrigin(lat,lon){lat0=lat;lon0=lon;mLon=111320*Math.cos(lat*Math.PI/180);}
+  function E(lon){return (lon-lon0)*mLon;}      // metres east  -> world +X
+  function N(lat){return (lat-lat0)*mLat;}      // metres north -> world -Z
+
+  /* ---------- build city from OSM ---------- */
+  const WALL_COLORS=[0xfff1da,0xffe0c2,0xffd9e0,0xe7e0ff,0xd8efff,0xe6f7d8,0xfff0b0,0xf6dcc4];
+  function buildFlatPoly(geom,color,y){
+    if(geom.length<3)return null;
+    const shape=new THREE.Shape();
+    shape.moveTo(E(geom[0].lon),N(geom[0].lat));
+    for(let i=1;i<geom.length;i++)shape.lineTo(E(geom[i].lon),N(geom[i].lat));
+    const g=new THREE.ShapeGeometry(shape);g.rotateX(-Math.PI/2);
+    const m=new THREE.Mesh(g,toy(color,{rough:1}));m.position.y=y;m.receiveShadow=true;return m;
+  }
+  function buildBuilding(geom,height,color){
+    if(geom.length<3)return null;
+    const shape=new THREE.Shape();
+    shape.moveTo(E(geom[0].lon),N(geom[0].lat));
+    for(let i=1;i<geom.length;i++)shape.lineTo(E(geom[i].lon),N(geom[i].lat));
+    const g=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:true,bevelThickness:0.5,bevelSize:0.5,bevelSegments:1,steps:1});
+    g.rotateX(-Math.PI/2);
+    const m=new THREE.Mesh(g,toy(color));m.castShadow=true;m.receiveShadow=true;return m;
+  }
+  function roadWidth(tag){return {motorway:9,trunk:8,primary:7,secondary:6,tertiary:5,residential:4,living_street:4,service:3,unclassified:4,pedestrian:4,footway:2,path:2,cycleway:2.5}[tag]||4;}
+  function buildRoad(geom,width){
+    const grp=new THREE.Group();
+    for(let i=0;i<geom.length-1;i++){
+      const x1=E(geom[i].lon),z1=-N(geom[i].lat),x2=E(geom[i+1].lon),z2=-N(geom[i+1].lat);
+      const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz);if(len<0.5)continue;
+      const seg=new THREE.Mesh(new THREE.PlaneGeometry(len,width),toy(0x6c7180,{rough:1}));
+      seg.rotation.x=-Math.PI/2;seg.position.set((x1+x2)/2,0.05,(z1+z2)/2);
+      seg.rotation.z=-Math.atan2(dz,dx);seg.receiveShadow=true;grp.add(seg);
+    }
+    return grp;
+  }
+  function heightFromTags(t){
+    if(t.height){const h=parseFloat(t.height);if(!isNaN(h))return Math.max(3,h);}
+    if(t["building:levels"]){const l=parseFloat(t["building:levels"]);if(!isNaN(l))return Math.max(3,l*3.2);}
+    return 6+Math.random()*9;
+  }
+  function buildCity(elements){
+    while(cityGroup.children.length)cityGroup.remove(cityGroup.children[0]);
+    let nB=0,nR=0,nG=0,nW=0;
+    // draw greens & water first (under roads/buildings)
+    elements.forEach(el=>{
+      if(el.type!=="way"||!el.geometry)return;const t=el.tags||{};
+      const isWater=t.natural==="water"||t.waterway||t.water;
+      const isGreen=t.leisure==="park"||t.natural==="wood"||/grass|forest|recreation_ground|meadow|village_green/.test(t.landuse||"");
+      if(isWater){const m=buildFlatPoly(el.geometry,0x40c4e6,0.04);if(m){cityGroup.add(m);nW++;}}
+      else if(isGreen){const m=buildFlatPoly(el.geometry,0x8fd17a,0.03);if(m){cityGroup.add(m);nG++;}}
+    });
+    elements.forEach(el=>{
+      if(el.type!=="way"||!el.geometry)return;const t=el.tags||{};
+      if(t.highway){cityGroup.add(buildRoad(el.geometry,roadWidth(t.highway)));nR++;}
+    });
+    elements.forEach(el=>{
+      if(el.type!=="way"||!el.geometry)return;const t=el.tags||{};
+      if(t.building){const m=buildBuilding(el.geometry,heightFromTags(t),WALL_COLORS[Math.floor(Math.random()*WALL_COLORS.length)]);if(m){cityGroup.add(m);nB++;}}
+    });
+    return {nB,nR,nG,nW};
+  }
+
+  /* ---------- fetch OSM ---------- */
+  const status=document.getElementById("status");
+  function showStatus(html){status.style.display="block";status.innerHTML=html;}
+  function hideStatus(){status.style.display="none";}
+
+  async function geocode(q){
+    // allow direct "lat,lon"
+    const ll=q.match(/^\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*$/);
+    if(ll)return {lat:parseFloat(ll[1]),lon:parseFloat(ll[2]),name:q};
+    const url="https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(q);
+    const r=await fetch(url,{headers:{"Accept":"application/json"}});
+    const j=await r.json();
+    if(!j.length)throw new Error("Couldn't find that place. Try a more specific name, or type 'lat,lon'.");
+    return {lat:parseFloat(j[0].lat),lon:parseFloat(j[0].lon),name:j[0].display_name};
+  }
+  async function fetchOSM(lat,lon,radius){
+    const dLat=radius/110540, dLon=radius/(111320*Math.cos(lat*Math.PI/180));
+    const s=lat-dLat,n=lat+dLat,w=lon-dLon,e=lon+dLon;
+    const bbox="("+s+","+w+","+n+","+e+")";
+    const q="[out:json][timeout:30];("
+      +'way["building"]'+bbox+";"
+      +'way["highway"]'+bbox+";"
+      +'way["natural"="water"]'+bbox+";"
+      +'way["waterway"]'+bbox+";"
+      +'way["leisure"="park"]'+bbox+";"
+      +'way["landuse"]'+bbox+";"
+      +'way["natural"="wood"]'+bbox+";"
+      +");out geom 1500;";
+    const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q)});
+    if(!r.ok)throw new Error("Map server busy — try again in a few seconds.");
+    return r.json();
+  }
+
+  let busy=false;
+  async function go(q){
+    if(busy)return;busy=true;
+    try{
+      showStatus('<span class="spin">🌍</span> Finding "'+q+'"…');
+      const loc=await geocode(q);
+      setOrigin(loc.lat,loc.lon);
+      showStatus('<span class="spin">🏗️</span> Building '+(loc.name.split(",")[0])+'…');
+      const data=await fetchOSM(loc.lat,loc.lon,280);
+      const counts=buildCity(data.elements||[]);
+      avatar.group.position.set(0,0,0);velY=0;
+      hideStatus();
+      flash("Welcome to "+(loc.name.split(",")[0])+"! 🏠 "+counts.nB+" buildings, "+counts.nR+" roads");
+    }catch(err){
+      showStatus("😅 "+err.message+'<br><br><button class="btn" id="dismiss">OK</button>');
+      document.getElementById("dismiss").onclick=hideStatus;
+    }finally{busy=false;}
+  }
+
+  /* ---------- toast ---------- */
+  let ft;function flash(msg){let el=document.getElementById("flash");if(!el){el=document.createElement("div");el.id="flash";el.style.cssText="position:absolute;bottom:60px;left:50%;transform:translateX(-50%);background:#2b2d42;color:#fff;padding:10px 18px;border-radius:20px;font-size:15px;z-index:15;transition:opacity .3s;box-shadow:0 4px 12px rgba(0,0,0,.25);";stage.parentNode.appendChild(el);}el.textContent=msg;el.style.opacity="1";clearTimeout(ft);ft=setTimeout(()=>el.style.opacity="0",2600);}
+
+  /* ---------- controls ---------- */
+  window.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if([" ","arrowup","arrowdown","arrowleft","arrowright"].includes(e.key.toLowerCase())&&document.activeElement.tagName!=="INPUT")e.preventDefault();});
+  window.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
+  stage.addEventListener("pointerdown",e=>{dragging=true;lastX=e.clientX;});
+  window.addEventListener("pointerup",()=>dragging=false);
+  window.addEventListener("pointermove",e=>{if(dragging){camAngle-=(e.clientX-lastX)*0.01;lastX=e.clientX;}});
+
+  function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),0.05);update(dt);renderer.render(scene,camera);}
+  function update(dt){
+    if(!avatar)return;
+    if(keys["q"])camAngle+=1.6*dt;if(keys["e"])camAngle-=1.6*dt;
+    const fwd=new THREE.Vector3(-Math.sin(camAngle),0,-Math.cos(camAngle));
+    const right=new THREE.Vector3(Math.cos(camAngle),0,-Math.sin(camAngle));
+    const move=new THREE.Vector3();const typing=document.activeElement.tagName==="INPUT";
+    if(!typing){
+      if(keys["arrowup"]||keys["w"])move.add(fwd);
+      if(keys["arrowdown"]||keys["s"])move.sub(fwd);
+      if(keys["arrowright"]||keys["d"])move.add(right);
+      if(keys["arrowleft"]||keys["a"])move.sub(right);
+    }
+    const moving=move.lengthSq()>0;const P=avatar.group.position;
+    if(moving){move.normalize();const sp=14;P.x+=move.x*sp*dt;P.z+=move.z*sp*dt;avatar.group.rotation.y=Math.atan2(move.x,move.z);walk+=dt*10;}
+    if(keys[" "]&&grounded&&!typing){velY=9;grounded=false;}
+    velY-=26*dt;P.y+=velY*dt;if(P.y<=0){P.y=0;velY=0;grounded=true;}
+    if(avatar.legs){const s=moving?Math.sin(walk)*0.5:0;avatar.legs.forEach((l,i)=>l.rotation.x=(i%2?-s:s));}
+    const dist=34,height=24;
+    camera.position.set(P.x-fwd.x*dist,P.y+height,P.z-fwd.z*dist);camera.lookAt(P.x,P.y+1.5,P.z);
+  }
+  function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
+  window.addEventListener("resize",resize);
+
+  /* ---------- UI wiring ---------- */
+  document.getElementById("goBtn").onclick=()=>{const q=document.getElementById("place").value.trim();if(q)go(q);};
+  document.getElementById("place").addEventListener("keydown",e=>{if(e.key==="Enter"){const q=e.target.value.trim();if(q)go(q);e.target.blur();}});
+  const PRESETS=[["Trafalgar Square, London","Trafalgar Sq"],["Times Square, New York","Times Sq"],["Eiffel Tower, Paris","Eiffel Tower"],["Sydney Opera House","Sydney"]];
+  const pc=document.getElementById("presets");
+  PRESETS.forEach(([q,label])=>{const b=document.createElement("button");b.className="btn";b.textContent=label;b.onclick=()=>{document.getElementById("place").value=q;go(q);};pc.appendChild(b);});
+
+  init();
+  // expose for headless tests
+  window.__mt={buildCity,setOrigin,buildBuilding,buildFlatPoly,buildRoad,cityGroup:()=>cityGroup,THREE};
+  })();
+  </script>
+</body>
+</html>

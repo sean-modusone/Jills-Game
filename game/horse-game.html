@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Horse 🐎</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Cormorant+Garamond:ital@0;1&display=swap">
+<link rel="stylesheet" href="design-system.css">
+<style>
+  :root{
+    --ink:#3d3227; --paper:#faf6ee; --tile:#f3ecdd;
+    --accent:#7a5230; --accent-soft:#e9dcc8; --accent2:#5f7d4f;
+    --gold:#c9973f; --lilac:#8d7a63;
+    --font:"Nunito","Trebuchet MS",system-ui,sans-serif;
+    --stroke:2px; --lift:4px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;min-height:100vh;font-family:var(--font);color:var(--ink);
+    background:linear-gradient(180deg,#9ecbe8 0%,#cde4d8 58%,#c9dfc0 70%);
+    display:flex;flex-direction:column;align-items:center;overflow-x:hidden;}
+
+  /* ---------- START + COAT SCREENS ---------- */
+  .screen{display:none;flex-direction:column;align-items:center;padding:52px 16px 60px;width:100%;}
+  .screen.show{display:flex;}
+  .screen h1{font-size:clamp(30px,5.5vw,46px);font-weight:800;margin:2px 0 0;letter-spacing:.5px;text-align:center;}
+  .screen .sub{opacity:.75;margin:8px 0 26px;text-align:center;font-style:italic;
+    font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;}
+  .card{background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:14px;
+    box-shadow:0 var(--lift) 0 rgba(61,50,39,.55);padding:28px 28px 30px;max-width:430px;width:100%;
+    display:flex;flex-direction:column;gap:16px;}
+  label{font-weight:700;font-size:15px;display:block;margin-bottom:6px;letter-spacing:.3px;}
+  input[type=text]{width:100%;font-family:var(--font);font-size:18px;color:var(--ink);
+    background:var(--tile);border:var(--stroke) solid var(--ink);border-radius:10px;
+    padding:12px 14px;outline:none;}
+  input[type=text]:focus{background:#fff;border-color:var(--accent);}
+  .btn{font-family:var(--font);font-weight:800;font-size:18px;color:#fff;background:var(--accent);
+    border:var(--stroke) solid var(--ink);border-radius:10px;padding:13px 20px;cursor:pointer;
+    box-shadow:0 var(--lift) 0 rgba(61,50,39,.55);transition:transform .08s;letter-spacing:.4px;}
+  .btn:hover{transform:translateY(-2px);}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(61,50,39,.55);}
+  .btn.small{font-size:14px;padding:9px 14px;background:var(--accent2);}
+  .btn.tan{background:var(--gold);color:#fff;}
+  .namerow{display:flex;gap:8px;align-items:flex-end;}
+  .namerow > div{flex:1;}
+  .shake{animation:shake .3s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+  /* live 3D preview of your pony and rider */
+  .previewSlot{width:min(94vw,620px);height:340px;margin:0 auto 14px;border-radius:18px;
+    border:3px solid var(--ink);background:linear-gradient(180deg,#cfe6f5,#e8f2df);
+    box-shadow:0 6px 0 rgba(61,50,39,.35);overflow:hidden;position:relative;}
+  .previewSlot canvas{display:block;width:100%;height:100%;}
+  .previewSlot .spin{position:absolute;right:10px;bottom:8px;font-size:12px;font-weight:700;
+    opacity:.6;pointer-events:none;}
+  @media (max-height:760px){ .previewSlot{height:250px;} }
+
+  /* coat picker */
+  .coatGrid{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;max-width:680px;}
+  .coatBtn{display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;
+    background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:14px;
+    padding:16px 18px 12px;box-shadow:0 var(--lift) 0 rgba(61,50,39,.55);
+    font-family:var(--font);font-weight:800;font-size:15px;color:var(--ink);
+    transition:transform .08s;min-width:108px;}
+  .coatBtn:hover{transform:translateY(-3px);}
+  .coatBtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(61,50,39,.55);}
+  .coatBtn .sw{width:56px;height:56px;border-radius:50%;border:2.5px solid var(--ink);position:relative;overflow:hidden;}
+  .coatBtn .sw i{position:absolute;left:0;top:0;bottom:0;width:34%;}
+  .coatBtn small{font-weight:600;opacity:.65;font-size:12px;margin-top:-4px;}
+
+  /* rider designer */
+  .rdCard{background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:14px;
+    box-shadow:0 var(--lift) 0 rgba(61,50,39,.55);padding:22px 28px 26px;max-width:460px;width:100%;}
+  .rdCard h3{font-size:14px;letter-spacing:.6px;margin:10px 0 8px;}
+  .swRow{display:flex;gap:12px;flex-wrap:wrap;}
+  .swBtn{width:44px;height:44px;border-radius:50%;border:2.5px solid var(--ink);cursor:pointer;
+    box-shadow:0 3px 0 rgba(61,50,39,.4);padding:0;}
+  .swBtn:active{transform:translateY(2px);box-shadow:none;}
+  .swBtn.sel{outline:4px solid var(--accent2);outline-offset:2px;}
+
+  /* ---------- PASTURE / STABLE / RIDING ---------- */
+  #pasture{display:none;flex-direction:column;align-items:center;width:100%;min-height:100vh;position:relative;}
+  #pasture.show{display:flex;}
+  #pasture h2{font-size:clamp(20px,4vw,30px);font-weight:800;margin:60px 0 0;z-index:2;text-align:center;padding:0 14px;}
+  .narrate{z-index:2;margin-top:6px;font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;
+    font-size:clamp(18px,3vw,23px);color:#4a3d2f;text-align:center;max-width:560px;padding:0 18px;min-height:30px;
+    transition:opacity .35s;}
+  .narrate.dim{opacity:0;}
+  .scene{position:relative;z-index:1;width:min(94vw,800px);margin-top:0;transition:opacity .7s;}
+  .scene.fade{opacity:0;}
+  .scene svg{width:100%;height:auto;display:block;}
+  #horseG{cursor:pointer;}
+  #walkGroup{transform:translateX(0);}
+  #walkGroup.walking{transition:transform 3.4s ease-in-out;transform:translateX(-460px);}
+  #walkGroup.walking #horseG{animation:walkbob .55s ease-in-out infinite;}
+  #walkGroup.walking #riderG{animation:walkbob .55s ease-in-out infinite .27s;}
+  @keyframes walkbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  .nudge{animation:nudge .9s ease;}
+  @keyframes nudge{0%,100%{transform:translateY(0)}25%{transform:translateY(-8px)}55%{transform:translateY(0)}75%{transform:translateY(-3px)}}
+  .graze{animation:graze 1.4s ease;}
+  @keyframes graze{0%,100%{transform:rotate(0)}30%,70%{transform:rotate(3deg) translateY(7px)}}
+  #tail{transform-origin:572px 215px;animation:swish 5.5s ease-in-out infinite;}
+  @keyframes swish{0%,100%{transform:rotate(0)}50%{transform:rotate(-5deg)}}
+  #earNear{transform-origin:190px 108px;animation:earflick 7s ease-in-out infinite;}
+  @keyframes earflick{0%,90%,100%{transform:rotate(0)}93%,96%{transform:rotate(-13deg)}}
+  .cloud{animation:drift 70s linear infinite;}
+  .cloud.c2{animation-duration:95s;animation-delay:-38s;}
+  @keyframes drift{from{transform:translateX(-180px)}to{transform:translateX(1080px)}}
+  .actions{z-index:2;display:flex;gap:10px;margin:14px 0 44px;flex-wrap:wrap;justify-content:center;max-width:760px;}
+  .actions.hidden{display:none;}
+  .btn.hidden{display:none;}
+  .float{position:fixed;font-size:26px;z-index:5;pointer-events:none;animation:floatUp 1.3s forwards;}
+  @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(.75)}100%{opacity:0;transform:translateY(-110px) scale(1.25)}}
+
+  /* ============ RIDING: legs, bob, parallax ============ */
+  #legFN,#legFF,#legHN,#legHF{transform-box:view-box;}
+  #legFN{transform-origin:306px 350px;}
+  #legFF{transform-origin:345px 354px;}
+  #legHN{transform-origin:578px 342px;}
+  #legHF{transform-origin:504px 352px;}
+  #horseG,#nearScroll{transform-box:view-box;}
+  @keyframes swingA{0%,100%{transform:rotate(7deg)}50%{transform:rotate(-7deg)}}
+  @keyframes swingB{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+  @keyframes swingAT{0%,100%{transform:rotate(12deg)}50%{transform:rotate(-12deg)}}
+  @keyframes swingBT{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+  @keyframes bobW{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes bobT{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  @keyframes bobC{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-12px) rotate(-2deg)}60%{transform:translateY(-2px) rotate(1.2deg)}}
+  @keyframes scrollNear{from{transform:translateX(0)}to{transform:translateX(900px)}}
+
+  .gait-walk #legFN,.gait-walk #legHF{animation:swingA 1.1s ease-in-out infinite;}
+  .gait-walk #legFF,.gait-walk #legHN{animation:swingB 1.1s ease-in-out infinite;}
+  .gait-walk #horseG{animation:bobW 1.1s ease-in-out infinite;}
+  .gait-walk #nearScroll{animation:scrollNear 8s linear infinite;}
+
+  .gait-trot #legFN,.gait-trot #legHF{animation:swingAT .55s ease-in-out infinite;}
+  .gait-trot #legFF,.gait-trot #legHN{animation:swingBT .55s ease-in-out infinite;}
+  .gait-trot #horseG{animation:bobT .55s ease-in-out infinite;}
+  .gait-trot #nearScroll{animation:scrollNear 3.6s linear infinite;}
+
+  .gait-canter #legFN,.gait-canter #legHF{animation:swingAT .42s ease-in-out infinite;}
+  .gait-canter #legFF,.gait-canter #legHN{animation:swingBT .42s ease-in-out infinite;}
+  .gait-canter #horseG{animation:bobC .42s ease-in-out infinite;}
+  .gait-canter #nearScroll{animation:scrollNear 1.9s linear infinite;}
+</style>
+</head>
+<body>
+<a class="ds-home" href="index.html">🏠 Home</a>
+
+<!-- ================= START ================= -->
+<div id="start" class="screen show">
+  <h1>THE STABLES</h1>
+  <p class="sub">Every great horse remembers the day it was named…</p>
+  <div class="card" id="nameCard">
+    <div>
+      <label for="playerName">YOUR NAME</label>
+      <input type="text" id="playerName" maxlength="20" placeholder="Type your name…" autocomplete="off">
+    </div>
+    <div class="namerow">
+      <div>
+        <label for="horseName">YOUR HORSE'S NAME</label>
+        <input type="text" id="horseName" maxlength="20" placeholder="Type a horse name…" autocomplete="off">
+      </div>
+      <button class="btn small" id="surpriseBtn" title="Pick a name for me!">✨</button>
+    </div>
+    <button class="btn" id="goBtn">Open the gate →</button>
+  </div>
+</div>
+
+<!-- ================= COAT PICKER ================= -->
+<div id="coatPick" class="screen">
+  <h1 id="coatTitle">CHOOSE YOUR PONY</h1>
+  <p class="sub">Which coat does your horse have?</p>
+  <div id="previewSlotCoat" class="previewSlot"></div>
+  <div class="coatGrid" id="coatGrid"></div>
+</div>
+
+<!-- ================= RIDER DESIGNER ================= -->
+<div id="riderPick" class="screen">
+  <h1>DESIGN YOUR RIDER</h1>
+  <p class="sub">Hair, riding clothes, helmet — make them yours!</p>
+  <div id="previewSlotRider" class="previewSlot"></div>
+  <div class="rdCard">
+    <h3>🧍 WHO ARE YOU RIDING AS?</h3>
+    <div id="riderModelRow" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;"></div>
+    <p id="riderModelNote" class="sub" style="margin:4px 0 12px;font-size:13px;"></p>
+    <h3>💇 HAIR</h3>
+    <div class="swRow" data-cat="hair"></div>
+    <h3>🧥 RIDING TOP</h3>
+    <div class="swRow" data-cat="top"></div>
+    <h3>👖 JODHPURS</h3>
+    <div class="swRow" data-cat="jods"></div>
+    <h3>🪖 HELMET</h3>
+    <div class="swRow" data-cat="helmet"></div>
+    <button class="btn" id="riderDoneBtn" style="margin-top:18px;width:100%;">Looking smart! →</button>
+  </div>
+</div>
+
+<!-- ================= PASTURE / STABLE / RIDING ================= -->
+<div id="pasture">
+  <h2 id="welcome"></h2>
+  <p class="narrate" id="narrate"></p>
+
+  <div class="scene" id="sceneWrap">
+  <svg viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="coat" x1="0" y1="120" x2="0" y2="430" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#a9713f"/>
+        <stop offset=".5" stop-color="#946035"/>
+        <stop offset="1" stop-color="#6f4523"/>
+      </linearGradient>
+      <linearGradient id="coatFar" x1="0" y1="120" x2="0" y2="430" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#7d522c"/>
+        <stop offset="1" stop-color="#54341a"/>
+      </linearGradient>
+      <linearGradient id="points" x1="0" y1="380" x2="0" y2="465" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#1e1710" stop-opacity="0"/>
+        <stop offset="1" stop-color="#1e1710" stop-opacity=".95"/>
+      </linearGradient>
+      <radialGradient id="sunGlow" cx=".5" cy=".5" r=".5">
+        <stop offset="0" stop-color="#fff7dd" stop-opacity=".95"/>
+        <stop offset=".45" stop-color="#ffeeb8" stop-opacity=".55"/>
+        <stop offset="1" stop-color="#ffeeb8" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7"/></filter>
+      <filter id="soft2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3.5"/></filter>
+      <clipPath id="bodyClip">
+        <path d="
+        M 190 118 C 180 130 170 142 163 152 C 148 176 136 196 129 210
+        C 125 216 121 222 120 227 C 117 235 121 243 130 244 C 138 245 145 241 149 234
+        C 158 238 168 238 176 232 C 188 224 194 214 197 204 C 214 232 238 266 262 298
+        C 270 314 273 330 272 342 C 274 352 280 358 292 361 C 336 368 424 368 466 357
+        C 490 350 508 341 519 333 C 536 338 552 334 562 324 C 578 306 586 280 587 250
+        C 588 232 582 216 570 208 C 549 197 526 197 504 203 C 466 211 428 213 392 203
+        C 368 196 350 192 338 190 C 282 154 228 126 200 115 C 195 113 192 114 190 118 Z"/>
+      </clipPath>
+    </defs>
+
+    <!-- ============ OUTDOORS ============ -->
+    <g id="outdoor">
+      <circle cx="775" cy="80" r="90" fill="url(#sunGlow)"/>
+      <circle cx="775" cy="80" r="34" fill="#fff3c9"/>
+      <g class="cloud" opacity=".92">
+        <ellipse cx="160" cy="80" rx="52" ry="17" fill="#fff"/>
+        <ellipse cx="200" cy="68" rx="32" ry="13" fill="#fff"/>
+      </g>
+      <g class="cloud c2" opacity=".72">
+        <ellipse cx="440" cy="52" rx="56" ry="15" fill="#fff"/>
+        <ellipse cx="482" cy="43" rx="30" ry="11" fill="#fff"/>
+      </g>
+      <path d="M600 110 q8 -7 16 0 M616 110 q8 -7 16 0" stroke="#5d6b78" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M660 90 q6 -6 13 0 M673 90 q6 -6 13 0" stroke="#5d6b78" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+      <path d="M0 250 Q160 185 340 235 Q540 288 720 222 Q810 192 900 226 L900 560 L0 560 Z" fill="#c3d4ac"/>
+      <g fill="#a4bb87">
+        <ellipse cx="90" cy="242" rx="26" ry="18"/><ellipse cx="122" cy="236" rx="18" ry="13"/>
+        <ellipse cx="822" cy="228" rx="28" ry="18"/><ellipse cx="856" cy="234" rx="18" ry="12"/>
+      </g>
+      <path d="M0 290 Q210 240 450 276 Q690 312 900 268 L900 560 L0 560 Z" fill="#a9c48e"/>
+      <rect x="0" y="356" width="900" height="204" fill="#8fb573"/>
+      <path d="M0 356 Q230 346 450 354 Q670 362 900 352 L900 372 L0 372 Z" fill="#83a968"/>
+
+      <!-- the barn (hidden while riding) -->
+      <g id="barnG">
+        <path d="M8 268 L 79 218 L 150 268 Z" fill="#6e4130"/>
+        <rect x="14" y="268" width="130" height="90" fill="#9c4f38"/>
+        <path d="M44 358 L 44 292 C 44 280 52 272 64 272 L 94 272 C 106 272 114 280 114 292 L 114 358 Z" fill="#3a251c"/>
+        <path d="M14 268 h130 M14 300 h30 M114 300 h30" stroke="#7d3f2c" stroke-width="3" opacity=".7"/>
+        <rect x="10" y="264" width="138" height="7" rx="3" fill="#b8674c"/>
+      </g>
+
+      <!-- near layer: fence + flowers + grass (tiled twice for scrolling) -->
+      <g id="nearScroll">
+        <g id="nearTile">
+          <g fill="#7d5f42">
+            <rect x="20" y="288" width="13" height="98" rx="2"/>
+            <rect x="245" y="292" width="13" height="94" rx="2"/>
+            <rect x="470" y="288" width="13" height="98" rx="2"/>
+            <rect x="695" y="292" width="13" height="94" rx="2"/>
+          </g>
+          <rect x="0" y="306" width="900" height="12" rx="0" fill="#8a6a4a"/>
+          <rect x="0" y="348" width="900" height="12" rx="0" fill="#8a6a4a"/>
+          <path d="M60 311 h120 M420 311 h180 M100 353 h150 M700 353 h130" stroke="#77593c" stroke-width="2" opacity=".6"/>
+          <g fill="#fff"><circle cx="84" cy="452" r="3.4"/><circle cx="96" cy="446" r="2.6"/><circle cx="742" cy="470" r="3.4"/><circle cx="756" cy="462" r="2.6"/><circle cx="688" cy="432" r="2.8"/></g>
+          <g fill="#f2d060"><circle cx="90" cy="449" r="1.7"/><circle cx="749" cy="466" r="1.7"/><circle cx="120" cy="500" r="3"/><circle cx="800" cy="512" r="3"/></g>
+          <g stroke="#6d9a52" stroke-width="3" stroke-linecap="round" fill="none">
+            <path d="M150 520 q-2 -15 -8 -19 M150 520 q1 -13 8 -17"/>
+            <path d="M700 528 q-2 -15 -8 -19 M700 528 q1 -13 8 -17"/>
+            <path d="M330 540 q-2 -13 -7 -17 M330 540 q2 -12 8 -15"/>
+            <path d="M810 470 q-2 -13 -6 -17 M810 470 q2 -12 7 -15"/>
+            <path d="M60 400 q-2 -13 -6 -17 M60 400 q2 -12 7 -15"/>
+          </g>
+        </g>
+        <use href="#nearTile" x="-900"/>
+      </g>
+    </g>
+
+    <!-- ============ STABLE INTERIOR ============ -->
+    <g id="stableBg" style="display:none">
+      <rect x="0" y="0" width="900" height="560" fill="#8a6748"/>
+      <g stroke="#74563c" stroke-width="4">
+        <path d="M60 0 V440 M180 0 V440 M300 0 V440 M420 0 V440 M540 0 V440 M660 0 V440 M780 0 V440"/>
+        <path d="M0 110 H900 M0 265 H900" stroke-width="3" opacity=".7"/>
+      </g>
+      <rect x="0" y="430" width="900" height="16" fill="#5e4430"/>
+      <rect x="0" y="446" width="900" height="114" fill="#d9b96a"/>
+      <g stroke="#c2a050" stroke-width="3" stroke-linecap="round">
+        <path d="M80 480 l26 -8 M130 512 l30 -6 M300 490 l28 -9 M520 500 l26 -7 M700 478 l30 -8 M780 516 l26 -9 M420 528 l28 -7"/>
+      </g>
+      <g>
+        <rect x="640" y="48" width="170" height="130" rx="6" fill="#bfe0f2"/>
+        <rect x="640" y="48" width="170" height="130" rx="6" fill="none" stroke="#5e4430" stroke-width="8"/>
+        <path d="M725 48 V178 M640 113 H810" stroke="#5e4430" stroke-width="7"/>
+        <ellipse cx="690" cy="90" rx="22" ry="8" fill="#fff" opacity=".8"/>
+      </g>
+      <g>
+        <path d="M60 140 C 100 128 140 128 175 142 C 178 190 160 232 118 244 C 78 232 58 190 60 140 Z" fill="#dcc072"/>
+        <g stroke="#8a6748" stroke-width="2.5" fill="none" opacity=".85">
+          <path d="M60 150 C 100 168 140 168 176 152 M64 190 C 100 206 138 206 172 190 M80 226 C 104 238 134 238 156 226"/>
+          <path d="M78 134 C 74 172 80 214 100 240 M118 132 C 116 172 118 210 118 243 M158 136 C 162 174 154 216 136 240"/>
+        </g>
+        <path d="M70 138 q10 -14 20 -2 M100 132 q10 -14 20 0 M138 132 q10 -12 20 2" stroke="#c9a94f" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </g>
+      <g>
+        <rect x="700" y="300" width="150" height="10" rx="3" fill="#5e4430"/>
+        <rect x="712" y="262" width="46" height="38" rx="5" fill="#a8794e"/>
+        <rect x="718" y="252" width="10" height="14" rx="3" fill="#c2554a"/>
+        <rect x="732" y="248" width="10" height="18" rx="3" fill="#4a6fa5"/>
+        <rect x="746" y="252" width="8" height="14" rx="3" fill="#7a5230"/>
+        <rect x="775" y="270" width="52" height="30" rx="5" fill="#87642f"/>
+        <path d="M780 270 q22 -16 44 0" stroke="#87642f" stroke-width="5" fill="none"/>
+      </g>
+      <circle cx="96" cy="252" r="9" fill="none" stroke="#4d4a45" stroke-width="5"/>
+    </g>
+
+    <!-- ============ WALKING GROUP: horse + rider ============ -->
+    <g id="walkGroup">
+
+    <!-- ============ THE HORSE ============ -->
+    <g id="horseG">
+      <ellipse cx="400" cy="516" rx="215" ry="15" fill="#4d4038" opacity=".3"/>
+
+      <g id="tail">
+        <path d="M566 210
+                 C 600 220 622 262 624 312
+                 C 626 362 612 416 590 456 L 584 464
+                 C 592 424 592 372 582 328
+                 C 590 356 590 396 580 430 L 574 438
+                 C 578 400 574 356 562 320
+                 C 556 290 556 250 566 210 Z" fill="#1f1812"/>
+        <path class="maneHi" d="M586 240 C 605 285 608 350 596 410 M576 248 C 588 300 590 360 580 415" stroke="#463526" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+      </g>
+
+      <!-- far legs (grouped for gait animation) -->
+      <g id="legFF">
+        <path d="M332 350 C 326 396 325 446 327 494 L 348 496 C 350 448 352 400 358 354 Z" fill="url(#coatFar)"/>
+        <path class="pointsFill" d="M332 350 C 326 396 325 446 327 494 L 348 496 C 350 448 352 400 358 354 Z" fill="url(#points)"/>
+        <path d="M324 492 L 352 494 L 353 509 C 353 512 350 514 345 514 L 331 514 C 326 514 323 511 323 507 Z" fill="#2b211a"/>
+      </g>
+      <g id="legHF">
+        <path d="M490 340 C 493 390 490 445 488 494 L 508 496 C 512 448 514 400 518 344 Z" fill="url(#coatFar)"/>
+        <path class="pointsFill" d="M490 340 C 493 390 490 445 488 494 L 508 496 C 512 448 514 400 518 344 Z" fill="url(#points)"/>
+        <path d="M482 492 L 510 494 L 511 509 C 511 512 508 514 503 514 L 489 514 C 484 514 481 511 481 507 Z" fill="#2b211a"/>
+      </g>
+
+      <path d="
+        M 190 118
+        C 180 130 170 142 163 152
+        C 148 176 136 196 129 210
+        C 125 216 121 222 120 227
+        C 117 235 121 243 130 244
+        C 138 245 145 241 149 234
+        C 158 238 168 238 176 232
+        C 188 224 194 214 197 204
+        C 214 232 238 266 262 298
+        C 270 314 273 330 272 342
+        C 274 352 280 358 292 361
+        C 336 368 424 368 466 357
+        C 490 350 508 341 519 333
+        C 536 338 552 334 562 324
+        C 578 306 586 280 587 250
+        C 588 232 582 216 570 208
+        C 549 197 526 197 504 203
+        C 466 211 428 213 392 203
+        C 368 196 350 192 338 190
+        C 282 154 228 126 200 115
+        C 195 113 192 114 190 118 Z"
+        fill="url(#coat)"/>
+
+      <ellipse cx="380" cy="346" rx="128" ry="21" fill="#000" opacity=".22" filter="url(#soft)"/>
+      <ellipse cx="245" cy="265" rx="16" ry="60" fill="#000" opacity=".2" filter="url(#soft)" transform="rotate(38 245 265)"/>
+      <ellipse cx="336" cy="280" rx="14" ry="64" fill="#000" opacity=".14" filter="url(#soft)"/>
+      <ellipse cx="520" cy="316" rx="19" ry="38" fill="#000" opacity=".16" filter="url(#soft)" transform="rotate(14 520 316)"/>
+      <ellipse cx="186" cy="216" rx="15" ry="19" fill="#000" opacity=".18" filter="url(#soft2)"/>
+      <ellipse cx="574" cy="268" rx="11" ry="42" fill="#000" opacity=".14" filter="url(#soft)"/>
+      <ellipse cx="540" cy="233" rx="44" ry="25" fill="#fff" opacity=".26" filter="url(#soft)"/>
+      <ellipse cx="302" cy="256" rx="25" ry="41" fill="#fff" opacity=".24" filter="url(#soft)"/>
+      <ellipse cx="430" cy="230" rx="82" ry="16" fill="#fff" opacity=".2" filter="url(#soft)"/>
+      <ellipse cx="258" cy="168" rx="54" ry="12" fill="#fff" opacity=".26" filter="url(#soft)" transform="rotate(-27 258 168)"/>
+      <ellipse cx="556" cy="294" rx="15" ry="28" fill="#fff" opacity=".18" filter="url(#soft)"/>
+      <ellipse cx="178" cy="176" rx="13" ry="21" fill="#fff" opacity=".2" filter="url(#soft2)"/>
+
+      <g class="pintoFill" clip-path="url(#bodyClip)" style="display:none">
+        <ellipse cx="298" cy="252" rx="42" ry="58" fill="#f2ece0" opacity=".96"/>
+        <ellipse cx="438" cy="300" rx="58" ry="44" fill="#f2ece0" opacity=".96"/>
+        <ellipse cx="545" cy="222" rx="36" ry="30" fill="#f2ece0" opacity=".96"/>
+        <ellipse cx="232" cy="205" rx="26" ry="42" fill="#f2ece0" opacity=".96"/>
+        <ellipse cx="500" cy="345" rx="30" ry="22" fill="#f2ece0" opacity=".96"/>
+      </g>
+      <g class="appyFill" clip-path="url(#bodyClip)" style="display:none">
+        <ellipse cx="520" cy="262" rx="92" ry="82" fill="#ece7dd" opacity=".92"/>
+        <g fill="#5a4638">
+          <circle cx="492" cy="232" r="6"/><circle cx="530" cy="216" r="5"/><circle cx="558" cy="244" r="6.5"/>
+          <circle cx="508" cy="272" r="5.5"/><circle cx="548" cy="286" r="5"/><circle cx="478" cy="300" r="4.5"/>
+          <circle cx="572" cy="268" r="4"/><circle cx="524" cy="308" r="4.5"/><circle cx="490" cy="330" r="4"/>
+          <circle cx="556" cy="316" r="3.6"/><circle cx="472" cy="258" r="4.2"/>
+        </g>
+      </g>
+
+      <!-- near legs (grouped for gait animation) -->
+      <g id="legFN">
+        <path d="M 289 344 C 284 372 283 394 286 410 C 284 416 284 424 286 430 L 287 464 C 287 472 286 478 284 483 C 282 489 281 494 282 498 L 305 500 C 305 494 305 488 304 482 L 303 468 C 304 448 305 432 305 424 C 307 414 309 400 313 388 C 317 374 320 362 323 352 Z" fill="url(#coat)"/>
+        <path class="pointsFill" d="M 289 344 C 284 372 283 394 286 410 C 284 416 284 424 286 430 L 287 464 C 287 472 286 478 284 483 C 282 489 281 494 282 498 L 305 500 C 305 494 305 488 304 482 L 303 468 C 304 448 305 432 305 424 C 307 414 309 400 313 388 C 317 374 320 362 323 352 Z" fill="url(#points)"/>
+        <path d="M287 410 q 8 3 17 2" stroke="#000" stroke-width="2" opacity=".18" fill="none" stroke-linecap="round"/>
+        <path class="sockFill" d="M284 480 C 282 488 281 494 282 498 L 305 500 C 305 493 305 487 304 481 C 297 485 290 484 284 480 Z" fill="#ded5c6"/>
+        <path d="M279 497 L 307 499 C 310 500 312 504 312 508 L 313 514 C 313 517 310 519 305 519 L 285 519 C 280 519 277 516 277 511 Z" fill="#6e6257"/>
+      </g>
+      <g id="legHN">
+        <path d="M 542 336 C 552 358 564 378 577 392 C 581 400 582 408 581 416 L 579 462 C 578 472 576 480 573 487 C 571 492 570 496 571 500 L 596 502 C 597 494 598 486 598 478 L 599 448 C 600 434 602 424 606 414 C 613 404 616 394 613 384 C 607 366 596 350 583 338 Z" fill="url(#coat)"/>
+        <path class="pointsFill" d="M 542 336 C 552 358 564 378 577 392 C 581 400 582 408 581 416 L 579 462 C 578 472 576 480 573 487 C 571 492 570 496 571 500 L 596 502 C 597 494 598 486 598 478 L 599 448 C 600 434 602 424 606 414 C 613 404 616 394 613 384 C 607 366 596 350 583 338 Z" fill="url(#points)"/>
+        <path d="M581 414 q 8 3 16 2" stroke="#000" stroke-width="2" opacity=".18" fill="none" stroke-linecap="round"/>
+        <path d="M568 499 L 598 501 C 602 502 604 506 604 510 L 605 515 C 605 518 602 520 597 520 L 575 520 C 570 520 567 517 567 512 Z" fill="#2b211a"/>
+      </g>
+
+      <path class="muzzleFill" d="M120 227 C 117 235 121 243 130 244 C 138 245 145 241 149 234 C 143 227 131 223 120 227 Z" fill="#39302a"/>
+      <path d="M127 220 q 9 1 10 11 q -9 1 -12 -9 z" fill="#17120e"/>
+      <path d="M128 240 q 10 5 20 1" stroke="#17120e" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path class="blazeFill" d="M176 138 C 162 162 148 190 138 212 C 136 218 135 224 136 228 C 142 226 146 219 150 210 C 160 186 170 158 178 142 Z" fill="#ece3d4" opacity=".95"/>
+      <path d="M163 155 q 10 -8 20 -2 q -9 10 -20 2 z" fill="#14100c"/>
+      <path d="M161 152 q 11 -9 23 -3" stroke="#241a12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <circle cx="174" cy="156" r="1.6" fill="#fff" opacity=".85"/>
+      <path id="earNear" d="M182 112 C 179 94 182 76 192 64 C 201 76 200 96 192 112 Z" fill="url(#coat)"/>
+      <path d="M188 104 C 187 92 189 80 193 72" stroke="#000" stroke-width="2.5" fill="none" opacity=".3" stroke-linecap="round"/>
+      <path d="M202 108 C 208 92 216 80 226 74 C 228 88 222 102 210 112 Z" fill="url(#coatFar)"/>
+
+      <path class="maneFill" d="M 196 112
+               C 252 140 304 170 344 196
+               C 352 212 353 228 348 244 L 344 250
+               C 338 232 330 216 318 204
+               C 322 220 320 234 312 244 L 306 252
+               C 300 234 292 218 280 208
+               C 282 222 278 234 268 240 L 262 246
+               C 258 228 250 212 238 202
+               C 238 214 232 224 224 226 L 218 230
+               C 214 212 206 196 196 186
+               C 196 196 192 202 186 202 L 182 202
+               C 178 186 176 170 176 156
+               C 176 140 180 124 186 114
+               C 190 110 194 110 196 112 Z"
+            fill="#1f1812"/>
+      <path class="maneHi" d="M196 120 C 246 144 292 172 330 196 M206 132 C 244 152 276 172 304 192" stroke="#463526" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".75"/>
+      <path class="maneFill" d="M188 116 C 176 128 170 144 172 160 L 176 162 C 180 148 186 134 192 124 Z" fill="#1f1812"/>
+
+      <!-- HEAD COLLAR (halter) -->
+      <g id="halterG" style="display:none">
+        <path d="M130 208 C 140 202 152 202 161 208" stroke="#4a5fa5" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M128 220 C 136 230 150 232 160 224" stroke="#4a5fa5" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M130 208 L 128 220 M 161 208 L 160 224" stroke="#4a5fa5" stroke-width="5" stroke-linecap="round"/>
+        <path d="M161 212 C 172 194 180 170 184 148" stroke="#4a5fa5" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+        <path d="M176 134 C 186 126 196 127 203 134" stroke="#4a5fa5" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+        <path d="M203 136 C 201 158 196 178 189 192" stroke="#4a5fa5" stroke-width="4.5" fill="none" stroke-linecap="round" opacity=".85"/>
+        <circle cx="144" cy="231" r="4.5" fill="none" stroke="#8a8f98" stroke-width="3"/>
+      </g>
+
+      <!-- ============ TACK ============ -->
+      <g id="tackPad" style="display:none">
+        <path d="M300 206 C 330 194 380 194 416 210 L 410 264 C 378 278 328 276 304 258 Z" fill="#a8c4e0"/>
+        <path d="M300 206 C 330 194 380 194 416 210 L 414 226 C 378 210 332 210 302 222 Z" fill="#7292bb" opacity=".55"/>
+      </g>
+      <g id="tackSaddle" style="display:none">
+        <!-- girth -->
+        <path d="M336 274 C 332 304 330 330 332 354 L 346 356 C 344 330 346 304 350 278 Z" fill="#4d3925"/>
+        <!-- flap -->
+        <path d="M322 210 C 314 238 318 264 334 280 C 350 286 362 280 366 262 C 366 240 360 220 350 210 Z" fill="#7a5535"/>
+        <path d="M328 218 C 322 240 326 260 338 272" stroke="#5e4028" stroke-width="2.5" fill="none" opacity=".7"/>
+        <!-- seat -->
+        <path d="M314 206 C 316 196 322 192 328 194 C 344 186 366 186 380 194 C 388 196 392 202 390 210 C 380 222 340 222 314 206 Z" fill="#6b4a2e"/>
+        <path d="M318 204 C 330 214 366 216 386 206" stroke="#54381f" stroke-width="2.5" fill="none" opacity=".8"/>
+        <!-- stirrup leather + iron -->
+        <path d="M344 226 L 337 294" stroke="#4d3925" stroke-width="7" stroke-linecap="round"/>
+        <path d="M330 296 C 328 310 334 317 340 317 C 347 317 352 309 350 297 Z" fill="none" stroke="#9aa2ad" stroke-width="5"/>
+      </g>
+      <g id="tackBridle" style="display:none">
+        <path d="M178 130 C 188 123 198 124 205 132" stroke="#54381f" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M173 137 C 182 129 194 129 202 137" stroke="#54381f" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M180 140 C 170 170 158 200 152 226" stroke="#54381f" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+        <path d="M130 212 C 142 205 156 205 166 211" stroke="#54381f" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+        <circle cx="150" cy="231" r="5" fill="none" stroke="#b8bdc6" stroke-width="3.5"/>
+      </g>
+
+      <!-- ============ MOUNTED RIDER ============ -->
+      <g id="mountedG" style="display:none">
+        <!-- reins -->
+        <path d="M152 230 C 212 204 270 182 324 172" stroke="#54381f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <path d="M152 234 C 214 212 272 190 326 179" stroke="#54381f" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>
+        <!-- torso -->
+        <path d="M348 198 C 344 172 348 146 356 130 C 364 124 374 126 378 134 C 378 158 372 182 366 202 Z" fill="#8f4a5a" class="r-top"/>
+        <path d="M358 134 C 354 156 352 178 354 198 L 362 200 C 362 178 364 156 368 136 Z" fill="#000" opacity=".15"/>
+        <!-- near thigh + boot -->
+        <path d="M350 198 C 334 210 323 226 319 244 L 332 251 C 338 234 348 221 361 211 Z" fill="#dcc49e" class="r-jods"/>
+        <path d="M321 246 C 323 266 327 285 334 302 L 347 298 C 340 281 336 263 335 247 Z" fill="#2e2622"/>
+        <!-- near arm -->
+        <path d="M358 140 C 350 152 341 162 331 170 L 337 179 C 347 171 357 160 366 148 Z" fill="#96505f" class="r-top"/>
+        <circle cx="330" cy="175" r="5.5" fill="#e8b68f"/>
+        <!-- head + helmet -->
+        <circle cx="366" cy="112" r="14.5" fill="#edbd92"/>
+        <path d="M360 114 a2 2 0 1 1 .1 0" fill="#3a2c22"/>
+        <path d="M380 116 C 386 124 388 134 386 142 C 380 138 377 130 377 122 Z" fill="#6b4226" class="r-hair"/>
+        <path d="M352 112 C 351 97 359 86 370 86 C 381 86 388 97 386 112 C 376 106 362 106 352 112 Z" fill="#263a5e" class="r-helmet"/>
+        <ellipse cx="355" cy="110" rx="8" ry="3.2" fill="#1b2b47"/>
+      </g>
+    </g>
+
+    <!-- lead rope -->
+    <path id="leadRope" d="M144 233 C 154 300 138 366 108 396" stroke="#b04a4a" stroke-width="4.5" fill="none" stroke-linecap="round" style="display:none"/>
+
+    <!-- ============ THE RIDER (on foot) ============ -->
+    <g id="riderG">
+      <ellipse cx="86" cy="514" rx="34" ry="7" fill="#4d4038" opacity=".25"/>
+      <path d="M76 416 C 74 434 74 450 75 462 L 74 500 L 88 500 L 88 464 C 90 448 90 432 89 418 Z" fill="#c9b28c" class="r-jods"/>
+      <path d="M74 462 L 73 502 C 73 506 76 509 81 509 L 92 509 C 95 509 96 506 94 503 L 88 496 L 88 462 Z" fill="#2e2622"/>
+      <path d="M88 416 C 87 434 87 450 88 462 L 87 502 L 101 502 L 101 464 C 103 448 103 432 102 418 Z" fill="#dcc49e" class="r-jods"/>
+      <path d="M87 462 L 86 504 C 86 508 89 511 94 511 L 105 511 C 108 511 109 508 107 505 L 101 498 L 101 462 Z" fill="#33291f"/>
+      <path d="M74 362 C 70 380 70 402 74 418 C 84 422 96 422 104 418 C 107 402 107 380 103 362 C 94 356 82 356 74 362 Z" fill="#8f4a5a" class="r-top"/>
+      <path d="M86 362 C 84 380 84 400 86 418 L 96 418 C 99 400 99 380 97 362 Z" fill="#000" opacity=".15"/>
+      <path d="M74 366 C 68 380 66 394 68 406 L 78 408 C 78 396 78 382 80 370 Z" fill="#7d3f4e" class="r-top"/>
+      <circle cx="73" cy="411" r="5.5" fill="#e8b68f"/>
+      <path id="riderArm" d="M96 364 C 102 376 108 386 114 394 L 122 388 C 114 378 108 368 104 360 Z" fill="#96505f" class="r-top"/>
+      <circle cx="119" cy="393" r="6" fill="#e8b68f"/>
+      <circle cx="87" cy="331" r="15.5" fill="#edbd92"/>
+      <path d="M93 333 a2 2 0 1 1 .1 0" fill="#3a2c22"/>
+      <path d="M90 341 q4 3 8 0" stroke="#b98b64" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M73 330 C 66 340 63 352 65 364 C 71 362 76 354 78 344 Z" fill="#6b4226" class="r-hair"/>
+      <path d="M70 330 C 68 314 76 302 88 302 C 100 302 107 314 105 330 C 94 324 80 324 70 330 Z" fill="#263a5e" class="r-helmet"/>
+      <ellipse cx="99" cy="328" rx="9" ry="3.4" fill="#1b2b47"/>
+      <path d="M84 304 C 82 312 82 320 84 326" stroke="#3c5480" stroke-width="2" fill="none" opacity=".7"/>
+    </g>
+
+    </g><!-- /walkGroup -->
+  </svg>
+  </div>
+
+  <!-- pasture buttons -->
+  <div class="actions" id="pastureActions">
+    <button class="btn tan" id="feedBtn">🥕 Feed</button>
+    <button class="btn small" id="collarBtn" style="background:#4a5fa5;">🪢 Head collar</button>
+    <button class="btn small" id="coatBtn" style="background:#a8794e;">🎨 Coat</button>
+    <button class="btn small" id="riderBtn" style="background:#b5688a;">👧 Rider</button>
+    <button class="btn small" id="renameBtn" style="background:var(--lilac);">✏️ Names</button>
+  </div>
+
+  <!-- stable buttons -->
+  <div class="actions hidden" id="stableActions">
+    <button class="btn small brush" data-brush="curry"  style="background:#c2554a;">🔴 Curry comb</button>
+    <button class="btn small brush" data-brush="dandy"  style="background:#c98a3d;">🧹 Dandy brush</button>
+    <button class="btn small brush" data-brush="body"   style="background:#7a5230;">🪮 Body brush</button>
+    <button class="btn small brush" data-brush="mane"   style="background:#7a6aa5;">💜 Mane comb</button>
+    <button class="btn small brush" data-brush="hoof"   style="background:#5a6570;">🪝 Hoof pick</button>
+    <button class="btn small" id="hayBtn" style="background:#b3912f;">🌾 Hay</button>
+    <button class="btn small" id="tackBtn" style="background:#54381f;">🐴 Tack up: saddle pad</button>
+    <button class="btn small hidden" id="rideBtn" style="background:#b3542f;">🏇 Ride!</button>
+    <button class="btn small" id="outBtn" style="background:var(--accent2);">🌳 Back to pasture</button>
+  </div>
+
+  <!-- riding buttons -->
+  <div class="actions hidden" id="ridingActions">
+    <button class="btn small gait" data-gait="walk"   style="background:#5f7d4f;">🚶 Walk</button>
+    <button class="btn small gait" data-gait="trot"   style="background:#c98a3d;">🏃 Trot</button>
+    <button class="btn small gait" data-gait="canter" style="background:#b3542f;">💨 Canter</button>
+    <button class="btn small" id="haltBtn" style="background:#5a6570;">✋ Whoa</button>
+    <a class="btn small" href="horse-3d.html" style="background:#3f7fae;text-decoration:none;display:inline-block;">🌍 3D Ride!</a>
+    <button class="btn small" id="dismountBtn" style="background:var(--lilac);">⬇️ Dismount &amp; untack</button>
+  </div>
+</div>
+
+<script>
+const SAVE_KEY = "jillsHorseGame";
+const surpriseNames = ["Willow","Storm","Chestnut","Midnight","Copper","River","Autumn","Shadow","Ember","Luna","Bella","Spirit","Duchess","Comet","Hazel","Juniper","Onyx","Sierra","Maple","Aspen"];
+
+const COATS = {
+  bay:      {label:"Bay",         hint:"brown, black mane", top:"#a9713f", mid:"#946035", low:"#6f4523", farTop:"#7d522c", farLow:"#54341a", mane:"#1f1812", maneHi:"#463526", points:true,  muzzle:"#39302a"},
+  black:    {label:"Black",       hint:"midnight all over", top:"#4a4a52", mid:"#35343b", low:"#232227", farTop:"#302f35", farLow:"#1a191d", mane:"#0e0d10", maneHi:"#33323a", points:false, muzzle:"#1c1a1e"},
+  chestnut: {label:"Chestnut",    hint:"red-brown all over", top:"#b56a40", mid:"#a0552f", low:"#7c3e1f", farTop:"#8a4c28", farLow:"#5e3115", mane:"#6f3a1f", maneHi:"#94552f", points:false, muzzle:"#4a2e1d"},
+  grey:     {label:"Dapple Grey", hint:"silver + smoke",    top:"#e3e3e5", mid:"#c9c9cd", low:"#a2a3a8", farTop:"#b5b5ba", farLow:"#8a8b90", mane:"#5f6065", maneHi:"#8a8a91", points:false, muzzle:"#4e4e54"},
+  palomino: {label:"Palomino",    hint:"gold + cream mane", top:"#e6bd76", mid:"#d5a55b", low:"#ad7f3e", farTop:"#c69752", farLow:"#96702f", mane:"#f2e8d5", maneHi:"#d8c5a0", points:false, muzzle:"#5a4a3a"},
+  buckskin: {label:"Buckskin",    hint:"sandy + black mane", top:"#d9b985", mid:"#c4a065", low:"#997a43", farTop:"#b3925a", farLow:"#836739", mane:"#221a13", maneHi:"#4d3d2c", points:true,  muzzle:"#2e261e"},
+  cream:    {label:"Cream",       hint:"nearly white",       top:"#f4eee2", mid:"#e8dfcd", low:"#c9bda3", farTop:"#ddd2bb", farLow:"#b3a68b", mane:"#e9e2d2", maneHi:"#cfc3aa", points:false, muzzle:"#8d7f6c"},
+  pinto:    {label:"Pinto",       hint:"big white patches",  top:"#a05f38", mid:"#8c4f2c", low:"#69391d", farTop:"#7a4526", farLow:"#522c13", mane:"#3a2c20", maneHi:"#5d4832", points:false, muzzle:"#39302a", pinto:true},
+  appaloosa:{label:"Appaloosa",   hint:"spotty bottom!",     top:"#9c6a44", mid:"#8a5a38", low:"#6b4225", farTop:"#7a4e2e", farLow:"#573517", mane:"#2f2419", maneHi:"#544230", points:false, muzzle:"#39302a", appy:true}
+};
+
+const BRUSHES = {
+  curry: [
+    "You rub the rubber curry comb in big circles — clouds of dust puff out of {h}'s coat.",
+    "Round and round with the curry comb. {h} wiggles those lips — that's the good spot!",
+  ],
+  dandy: [
+    "Flick, flick! The stiff dandy brush sweeps away all the dirt the curry comb loosened.",
+    "You flick the dandy brush along {h}'s coat and the dried mud goes flying.",
+  ],
+  body: [
+    "Long, smooth strokes with the soft body brush — {h}'s coat starts to gleam.",
+    "The body brush glides over {h}'s coat like silk.",
+  ],
+  mane: [
+    "You comb {h}'s mane gently, starting from the bottom of the tangles like a real groom.",
+    "One stroke at a time, {h}'s mane turns smooth and silky.",
+  ],
+  hoof: [
+    "You run your hand down {h}'s leg and pick out the hoof — front to back, always.",
+    "{h} rests a hoof in your hand while you carefully pick it clean. Perfect trust.",
+  ]
+};
+const BRUSH_FX = { curry:"💨", dandy:"💨", body:"✨", mane:"✨", hoof:"🪨" };
+
+const TACK_STEPS = [
+  { btn:"🐴 Tack up: saddle pad", },
+  { show:"tackPad",    narr:"You lay the soft saddle pad gently on {h}'s back.",            btn:"🐴 Tack up: saddle + girth" },
+  { show:"tackSaddle", narr:"You lift the saddle on and buckle the girth — snug, not tight.", btn:"🐴 Tack up: bridle" },
+  { show:"tackBridle", narr:"Head collar off, bridle on — {h} takes the bit politely. Ready to ride!", btn:"✅ Tacked up!" }
+];
+
+const GAITS = {
+  walk:   "Clip… clop… {h} walks out on a long rein, ears swinging happily.",
+  trot:   "You rise to the trot — one-two, one-two — {h}'s hooves drum the ground.",
+  canter: "You sit deep and {h} lifts into a rocking canter — da-da-DUM, da-da-DUM!"
+};
+
+const $ = id => document.getElementById(id);
+let state = { player:"", horse:"", coat:"" };
+let halterOn = false, mode = "pasture", busy = false, tackStage = 0;
+let brushesUsed = new Set();
+
+try{
+  const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
+  if(saved && saved.player){ state = Object.assign(state, saved); $("playerName").value = saved.player; $("horseName").value = saved.horse; }
+}catch(e){}
+state.rider = Object.assign({hair:"#6b4226", top:"#8f4a5a", jods:"#dcc49e", helmet:"#263a5e"}, state.rider || {});
+
+
+function save(){ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
+
+/* ---- rider designer ---- */
+const RIDER_OPTS = {
+  hair:   ["#e8c56b","#6b4226","#2a2320","#b5502a","#ff9db3"],
+  top:    ["#8f4a5a","#2e4a7d","#3f6d3f","#c2554a","#7a6aa5"],
+  jods:   ["#dcc49e","#f0ede6","#9aa0a8","#33291f"],
+  helmet: ["#263a5e","#1d1a17","#d96a8f","#b8bdc6"]
+};
+function applyRider(){
+  const r = state.rider;
+  document.querySelectorAll(".r-hair").forEach(e=>e.setAttribute("fill", r.hair));
+  document.querySelectorAll(".r-top").forEach(e=>e.setAttribute("fill", r.top));
+  document.querySelectorAll(".r-jods").forEach(e=>e.setAttribute("fill", r.jods));
+  document.querySelectorAll(".r-helmet").forEach(e=>e.setAttribute("fill", r.helmet));
+}
+function refreshSwSel(){
+  document.querySelectorAll(".swRow").forEach(row=>{
+    const cat = row.dataset.cat;
+    [...row.children].forEach((b,i)=>b.classList.toggle("sel", RIDER_OPTS[cat][i] === state.rider[cat]));
+  });
+}
+document.querySelectorAll(".swRow").forEach(row=>{
+  const cat = row.dataset.cat;
+  RIDER_OPTS[cat].forEach(hex=>{
+    const b = document.createElement("button");
+    b.className = "swBtn";
+    b.style.background = hex;
+    b.onclick = ()=>{ state.rider[cat] = hex; save(); applyRider(); refreshSwSel(); };
+    row.appendChild(b);
+  });
+});
+refreshSwSel();
+
+function applyCoat(key){
+  const c = COATS[key]; if(!c) return;
+  state.coat = key;
+  const stops = document.querySelectorAll("#coat stop");
+  stops[0].setAttribute("stop-color", c.top);
+  stops[1].setAttribute("stop-color", c.mid);
+  stops[2].setAttribute("stop-color", c.low);
+  const fstops = document.querySelectorAll("#coatFar stop");
+  fstops[0].setAttribute("stop-color", c.farTop);
+  fstops[1].setAttribute("stop-color", c.farLow);
+  document.querySelectorAll("path.maneFill").forEach(el=>el.setAttribute("fill", c.mane));
+  document.querySelector("#tail path").setAttribute("fill", c.mane);
+  document.querySelectorAll(".maneHi").forEach(el=>el.setAttribute("stroke", c.maneHi));
+  document.querySelectorAll(".pointsFill").forEach(el=>el.style.display = c.points ? "" : "none");
+  document.querySelectorAll(".pintoFill").forEach(el=>el.style.display = c.pinto ? "" : "none");
+  document.querySelectorAll(".appyFill").forEach(el=>el.style.display = c.appy ? "" : "none");
+  document.querySelector(".muzzleFill").setAttribute("fill", c.muzzle);
+  document.querySelector(".blazeFill").style.opacity = (key==="grey"||key==="palomino"||key==="cream"||key==="pinto") ? 0 : .95;
+}
+
+const grid = $("coatGrid");
+Object.entries(COATS).forEach(([key,c])=>{
+  const b = document.createElement("button");
+  b.className = "coatBtn";
+  let swBg = `linear-gradient(180deg,${c.top},${c.low})`;
+  if(c.pinto) swBg = `radial-gradient(circle at 68% 30%, #f2ece0 11px, transparent 12px), radial-gradient(circle at 30% 70%, #f2ece0 9px, transparent 10px), ${swBg}`;
+  if(c.appy)  swBg = `radial-gradient(circle at 70% 40%, #5a4638 3.5px, transparent 4.5px), radial-gradient(circle at 58% 66%, #5a4638 3px, transparent 4px), radial-gradient(circle at 80% 62%, #5a4638 2.8px, transparent 3.8px), radial-gradient(circle at 66% 52%, #ece7dd 16px, transparent 17px), ${swBg}`;
+  b.innerHTML = `<span class="sw" style="background:${swBg}"><i style="background:${c.mane}"></i></span>${c.label}<small>${c.hint}</small>`;
+  b.onclick = ()=>{ applyCoat(key); save(); showScreen("riderPick"); };
+  grid.appendChild(b);
+});
+
+function showScreen(id){
+  ["start","coatPick","riderPick"].forEach(s=>$(s).classList.toggle("show", s===id));
+  $("pasture").classList.toggle("show", id==="pasture");
+}
+
+$("riderDoneBtn").onclick = ()=>{
+  save(); applyRider();
+  /* login complete → straight to the 3D yard! */
+  location.href = "horse-3d.html";
+};
+/* ---- which character are you? ---- */
+const RIDER_MODELS = [
+  {id:"classic", label:"🎨 Colour-in rider", note:"Pick her hair, top, jodhpurs and helmet — all yours."},
+  {id:"woman",   label:"🧍 Ready-made rider", note:"Comes as she is (her outfit is painted on), but you can still choose her helmet."}
+];
+if(!state.riderModel) state.riderModel = "classic";
+function applyRiderModel(){
+  const row = document.getElementById("riderModelRow");
+  row.innerHTML = "";
+  for(const m of RIDER_MODELS){
+    const b = document.createElement("button");
+    b.className = "btn small";
+    b.textContent = m.label;
+    b.style.background = state.riderModel === m.id ? "#5f7d4f" : "#a8794e";
+    b.onclick = ()=>{
+      state.riderModel = m.id;
+      save();
+      applyRiderModel();
+      if(window.preview3D) window.preview3D.setRiderModel(m.id);
+    };
+    row.appendChild(b);
+  }
+  const chosen = RIDER_MODELS.find(m => m.id === state.riderModel);
+  document.getElementById("riderModelNote").textContent = chosen ? chosen.note : "";
+  /* the ready-made rider can't be recoloured, so dim those rows */
+  const dim = state.riderModel !== "classic";
+  document.querySelectorAll('.swRow[data-cat]').forEach(r=>{
+    if(r.dataset.cat === "helmet") return;
+    r.style.opacity = dim ? 0.35 : 1;
+    r.style.pointerEvents = dim ? "none" : "";
+  });
+}
+applyRiderModel();
+
+/* keep the 3D preview in step with every choice */
+const _applyRider = applyRider, _applyCoat = applyCoat, _showScreen = showScreen;
+applyRider = function(){ _applyRider(); if(window.preview3D) window.preview3D.setRider(state.rider); };
+applyCoat = function(k){ _applyCoat(k); if(window.preview3D) window.preview3D.setCoat(k); };
+showScreen = function(id){ _showScreen(id); if(window.preview3D) window.preview3D.moveTo(id); };
+window.__state = state;
+</script>
+
+<!-- ================= LIVE 3D PREVIEW of your pony and rider ================= -->
+<script src="assets/horse-model.js"></script>
+<script src="assets/rider-model.js"></script>
+<script src="assets/rider2-model.js"></script>
+<script type="importmap">
+{ "imports": {
+    "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const COATS3D = {
+  bay:      {main:0x946035, dark:0x1f1812},
+  black:    {main:0x35343b, dark:0x0e0d10},
+  chestnut: {main:0xa0552f, dark:0x6f3a1f},
+  grey:     {main:0xc9c9cd, dark:0x5f6065},
+  palomino: {main:0xd5a55b, dark:0xf2e8d5},
+  buckskin: {main:0xc4a065, dark:0x221a13},
+  cream:    {main:0xe8dfcd, dark:0xe9e2d2},
+  pinto:    {main:0x8c4f2c, dark:0x3a2c20},
+  appaloosa:{main:0x8a5a38, dark:0x2f2419}
+};
+const canvas = document.createElement("canvas");
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xdff1ff, 0x7f9a64, 1.1));
+const sun = new THREE.DirectionalLight(0xfff2d0, 1.5);
+sun.position.set(4, 8, 6);
+scene.add(sun);
+const camera = new THREE.PerspectiveCamera(38, 2, 0.1, 100);
+const stage = new THREE.Group();
+scene.add(stage);
+/* a patch of grass so they're standing on something */
+const turf = new THREE.Mesh(new THREE.CircleGeometry(4.4, 40),
+  new THREE.MeshStandardMaterial({color:0x7ba363, roughness:1}));
+turf.rotation.x = -Math.PI/2;
+stage.add(turf);
+
+let horseMats = {}, riderMats = {top:[], topLight:[], jods:[], hair:[]}, helmetMesh = null;
+let mixers = [];
+const clock = new THREE.Clock();
+
+new GLTFLoader().parse(HORSE_GLTF_JSON, '', (g) => {
+  const m = g.scene;
+  m.scale.setScalar(0.42);
+  m.position.set(-1.15, 0, 0);
+  m.rotation.y = Math.PI/2 + 0.5;
+  const seen = new Set();
+  m.traverse(o => {
+    if(!o.isMesh) return;
+    for(const mm of (Array.isArray(o.material) ? o.material : [o.material])){
+      if(seen.has(mm.uuid)) continue;
+      seen.add(mm.uuid);
+      if(!horseMats[mm.name]) horseMats[mm.name] = [];
+      horseMats[mm.name].push(mm);
+    }
+  });
+  const mx = new THREE.AnimationMixer(m);
+  const idle = g.animations.find(a => a.name === "Idle") || g.animations[0];
+  if(idle) mx.clipAction(idle).play();
+  mixers.push(mx);
+  stage.add(m);
+  applyCoat3D((window.__state && window.__state.coat) || "bay");
+});
+
+new GLTFLoader().parse(RIDER_GLTF_JSON, '', (g) => {
+  const r = g.scene;
+  r.scale.setScalar(0.95);
+  r.position.set(1.25, 0, 0.2);
+  r.rotation.y = -0.35;
+  const seen = new Set();
+  let headBone = null;
+  r.traverse(o => {
+    if(o.isBone && o.name === "Head") headBone = o;
+    if(!o.isMesh) return;
+    for(const mm of (Array.isArray(o.material) ? o.material : [o.material])){
+      if(seen.has(mm.uuid)) continue;
+      seen.add(mm.uuid);
+      if(mm.name === "Hair_Brown") riderMats.hair.push(mm);
+      else if(mm.name === "Green") riderMats.top.push(mm);
+      else if(mm.name === "LightGreen") riderMats.topLight.push(mm);
+      else if(mm.name === "Brown2" || mm.name === "Brown_02") riderMats.jods.push(mm);
+    }
+  });
+  if(headBone){
+    const helm = new THREE.Mesh(
+      new THREE.SphereGeometry(0.135, 18, 12, 0, Math.PI*2, 0, 1.45),
+      new THREE.MeshStandardMaterial({color:0x263a5e, roughness:0.45})
+    );
+    helm.position.set(0.01, 0.115, -0.02);
+    helm.scale.set(1, 1.35, 1.05);
+    const peak = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 10), helm.material);
+    peak.scale.set(0.42, 0.05, 0.5);
+    peak.position.set(0, 0.012, 0.125);
+    peak.rotation.x = -0.18;
+    helm.add(peak);
+    headBone.add(helm);
+    helmetMesh = helm;
+  }
+  const mx = new THREE.AnimationMixer(r);
+  const idle = g.animations.find(a => a.name === "Idle") || g.animations[0];
+  if(idle) mx.clipAction(idle).play();
+  mixers.push(mx);
+  stage.add(r);
+  classicModel = r;
+  setRiderModel3D((window.__state && window.__state.riderModel) || "classic");
+  applyRider3D((window.__state && window.__state.rider) || {hair:"#6b4226", top:"#8f4a5a", jods:"#dcc49e", helmet:"#263a5e"});
+});
+
+/* the ready-made rider, stood next to the colour-in one */
+let womanModel = null, womanHelmet = null;
+if(typeof RIDER2_GLB_B64 === "string"){
+  const raw = atob(RIDER2_GLB_B64), bytes = new Uint8Array(raw.length);
+  for(let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  new GLTFLoader().parse(bytes.buffer, '', (g) => {
+    const w = g.scene;
+    /* NB: Box3 on a skinned mesh lies (the geometry sits at the origin and the
+       skeleton does the work), so size her off the Head bone instead. */
+    w.scale.setScalar(0.34);
+    w.position.set(1.25, 0, 0.2);
+    w.rotation.y = -0.35;
+    let headB = null;
+    w.traverse(o => {
+      /* skinned meshes get culled wrongly when the parent is scaled — keep her on screen */
+      if(o.isMesh){ o.castShadow = true; o.frustumCulled = false; }
+      if(o.isBone && o.name === "Head") headB = o;
+    });
+    if(headB){
+      /* her bones are in their own units, so work out how big a real-world
+         0.14 radius hat is in head-bone space */
+      w.updateMatrixWorld(true);
+      const hs = headB.getWorldScale(new THREE.Vector3()).x || 1;
+      const u = 0.135 / hs;
+      const helm = new THREE.Mesh(
+        new THREE.SphereGeometry(u, 18, 12, 0, Math.PI*2, 0, 1.45),
+        new THREE.MeshStandardMaterial({color:0x263a5e, roughness:0.45})
+      );
+      helm.position.set(0, u*0.55, u*0.06);
+      helm.scale.set(1, 1.3, 1.05);
+      const peak = new THREE.Mesh(new THREE.SphereGeometry(u*0.95, 16, 10), helm.material);
+      peak.scale.set(0.42, 0.05, 0.5);
+      peak.position.set(0, u*0.08, u*0.9);
+      helm.add(peak);
+      headB.add(helm);
+      womanHelmet = helm;
+    }
+    const mx = new THREE.AnimationMixer(w);
+    const idle = g.animations.find(a => /Idle$/.test(a.name)) || g.animations[0];
+    if(idle) mx.clipAction(idle).play();
+    mixers.push(mx);
+    womanModel = w;
+    stage.add(w);
+    setRiderModel3D((window.__state && window.__state.riderModel) || "classic");
+  });
+}
+let classicModel = null;
+function setRiderModel3D(id){
+  if(classicModel) classicModel.visible = (id === "classic");
+  if(womanModel) womanModel.visible = (id !== "classic");
+}
+function applyCoat3D(key){
+  const c = COATS3D[key] || COATS3D.bay;
+  const set = (name, hex, dl) => (horseMats[name] || []).forEach(m => {
+    m.color.setHex(hex);
+    if(dl) m.color.offsetHSL(0, 0, dl);
+  });
+  set("Main", c.main); set("Main_Light", c.main, 0.08); set("Main_Dark", c.main, -0.07);
+  set("Hair", c.dark); set("Muzzle", c.dark, 0.05);
+}
+function applyRider3D(cfg){
+  if(!cfg) return;
+  riderMats.hair.forEach(m => m.color.set(cfg.hair));
+  riderMats.top.forEach(m => m.color.set(cfg.top));
+  riderMats.topLight.forEach(m => { m.color.set(cfg.top); m.color.offsetHSL(0, 0, 0.08); });
+  riderMats.jods.forEach(m => m.color.set(cfg.jods));
+  if(helmetMesh) helmetMesh.material.color.set(cfg.helmet);
+  if(womanHelmet) womanHelmet.material.color.set(cfg.helmet);
+}
+
+/* the camera swings between framing the pony and framing the rider */
+let camAim = {x:-0.9, y:1.5, dist:6.4}, camNow = {x:-0.9, y:1.5, dist:6.4};
+function frameFor(screenId){
+  if(screenId === "riderPick") camAim = {x:1.2, y:1.15, dist:2.9};   /* right in on your rider */
+  else camAim = {x:-0.9, y:1.5, dist:4.7};                           /* the whole pony, big */
+}
+window.preview3D = {
+  scene, stage, camera,
+  dump(){
+    const out = [];
+    (womanModel || stage).traverse(o => {
+      if(!(o.isMesh || o.isSkinnedMesh)) return;
+      const bb = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
+      out.push({name:o.name, skinned:!!o.isSkinnedMesh, vis:o.visible, culled:o.frustumCulled,
+        wScale:+o.getWorldScale(new THREE.Vector3()).x.toFixed(3),
+        wPos:o.getWorldPosition(new THREE.Vector3()).toArray().map(v=>+v.toFixed(2)),
+        bb:[bb.min.toArray().map(v=>+v.toFixed(1)), bb.max.toArray().map(v=>+v.toFixed(1))],
+        mat:o.material && o.material.type, map:!!(o.material && o.material.map),
+        opacity:o.material && o.material.opacity, transparent:o.material && o.material.transparent});
+    });
+    return out;
+  },
+  setCoat: applyCoat3D,
+  setRider: applyRider3D,
+  setRiderModel: setRiderModel3D,
+  moveTo(screenId){
+    const slot = screenId === "riderPick" ? document.getElementById("previewSlotRider")
+               : screenId === "coatPick"  ? document.getElementById("previewSlotCoat") : null;
+    if(slot && canvas.parentElement !== slot){
+      slot.appendChild(canvas);
+      const tag = document.createElement("span");
+      tag.className = "spin";
+      tag.textContent = "drag to spin";
+      if(!slot.querySelector(".spin")) slot.appendChild(tag);
+    }
+    frameFor(screenId);
+    resize();
+  }
+};
+function resize(){
+  const p = canvas.parentElement;
+  if(!p) return;
+  const w = p.clientWidth, h = p.clientHeight;
+  if(!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+
+/* drag to spin them round */
+let spin = 0.35, dragging = false, lastX = 0;
+canvas.addEventListener("pointerdown", e => { dragging = true; lastX = e.clientX; });
+addEventListener("pointerup", () => dragging = false);
+addEventListener("pointermove", e => {
+  if(!dragging) return;
+  spin -= (e.clientX - lastX) * 0.01;
+  lastX = e.clientX;
+});
+
+function tick(){
+  const dt = Math.min(clock.getDelta(), 0.05);
+  for(const m of mixers) m.update(dt);
+  if(!dragging) spin += dt * 0.25;
+  stage.rotation.y = spin;
+  camNow.x += (camAim.x - camNow.x) * Math.min(1, dt*3);
+  camNow.y += (camAim.y - camNow.y) * Math.min(1, dt*3);
+  camNow.dist += (camAim.dist - camNow.dist) * Math.min(1, dt*3);
+  const fx = Math.cos(spin) * camNow.x, fz = -Math.sin(spin) * camNow.x;
+  camera.position.set(fx, camNow.y + 0.85, fz + camNow.dist);
+  camera.lookAt(fx, camNow.y * 0.75, fz);
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+$("surpriseBtn").onclick = () => {
+  $("horseName").value = surpriseNames[Math.floor(Math.random()*surpriseNames.length)];
+};
+
+$("goBtn").onclick = () => {
+  const p = $("playerName").value.trim();
+  const h = $("horseName").value.trim();
+  if(!p || !h){
+    const card = $("nameCard");
+    card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
+    if(!p) $("playerName").focus(); else $("horseName").focus();
+    return;
+  }
+  state.player = p; state.horse = h; save();
+  $("coatTitle").textContent = `CHOOSE ${h.toUpperCase()}'S COAT`;
+  showScreen("coatPick");
+};
+
+function enterPasture(fresh){
+  $("welcome").textContent = `${state.horse}'s Pasture`;
+  const c = COATS[state.coat];
+  narrate(fresh && c
+    ? `${state.horse} the ${c.label.toLowerCase()} trots over as ${state.player} opens the gate.`
+    : `${state.horse} lifts up that handsome head as ${state.player} walks through the gate.`);
+}
+
+let narrateTimer;
+function narrate(text){
+  const n = $("narrate");
+  clearTimeout(narrateTimer);
+  n.classList.add("dim");
+  narrateTimer = setTimeout(()=>{ n.textContent = text; n.classList.remove("dim"); }, 280);
+}
+
+function burst(emoji, n=5, yFrac=0.3){
+  const r = $("horseG").getBoundingClientRect();
+  for(let i=0;i<n;i++){
+    const s = document.createElement("span");
+    s.className = "float"; s.textContent = emoji;
+    s.style.left = (r.left + r.width*(0.25+Math.random()*0.5)) + "px";
+    s.style.top  = (r.top + r.height*yFrac) + "px";
+    s.style.animationDelay = (Math.random()*0.35)+"s";
+    document.body.appendChild(s);
+    setTimeout(()=>s.remove(), 1900);
+  }
+}
+
+function animate(cls){
+  if(mode==="riding") return;
+  const g = $("horseG");
+  g.classList.remove("nudge","graze"); g.getBoundingClientRect();
+  g.classList.add(cls);
+  setTimeout(()=>g.classList.remove(cls), 1500);
+}
+
+document.getElementById("horseG").addEventListener("click", () => {
+  animate("nudge");
+  const lines = mode==="pasture" ? [
+    `${state.horse} whinnies and tosses that long mane.`,
+    `${state.horse} nuzzles ${state.player}'s shoulder gently.`,
+    `${state.horse} stamps a hoof and snorts, ready for an adventure.`,
+    `${state.horse} flicks both ears toward you, listening.`,
+    `${state.horse} nickers softly — you two are a team now.`
+  ] : mode==="stable" ? [
+    `${state.horse} sighs happily in the cosy stable.`,
+    `${state.horse} bumps you with a soft nose — more scratches, please.`,
+    `${state.horse} pricks both ears at the sparrows in the rafters.`
+  ] : [
+    `${state.horse}'s ears flick back to listen to you.`,
+    `You give ${state.horse} a pat on that warm neck. Good horse!`
+  ];
+  narrate(lines[Math.floor(Math.random()*lines.length)]);
+});
+
+$("feedBtn").onclick = () => {
+  animate("graze"); burst("🥕",4);
+  const lines = [
+    `${state.horse} crunches the carrot happily, whiskers tickling your palm.`,
+    `${state.horse} takes the carrot gently and munches, eyes half-closed.`,
+    `${state.horse} finishes the carrot and sniffs your pockets for more.`
+  ];
+  narrate(lines[Math.floor(Math.random()*lines.length)]);
+};
+
+/* ---- head collar + leading ---- */
+$("collarBtn").onclick = () => {
+  if(busy) return;
+  if(!halterOn){
+    halterOn = true;
+    $("halterG").style.display = "";
+    $("collarBtn").innerHTML = "🚶‍♀️ Lead to stable →";
+    narrate(`You slip the head collar over ${state.horse}'s nose and buckle it behind the ears.`);
+    animate("nudge");
+  } else {
+    walkToStable();
+  }
+};
+
+function walkToStable(){
+  busy = true;
+  $("leadRope").style.display = "";
+  $("pastureActions").classList.add("hidden");
+  narrate(`You clip on the lead rope and walk ${state.horse} across the pasture…`);
+  const wg = $("walkGroup");
+  requestAnimationFrame(()=> wg.classList.add("walking"));
+  setTimeout(()=> $("sceneWrap").classList.add("fade"), 2500);
+  setTimeout(()=>{
+    mode = "stable";
+    $("outdoor").style.display = "none";
+    $("stableBg").style.display = "";
+    wg.classList.remove("walking");
+    wg.style.transition = "none"; wg.style.transform = "translateX(0)";
+    requestAnimationFrame(()=>{ wg.style.transition = ""; });
+    $("welcome").textContent = `${state.horse}'s Stable`;
+    $("sceneWrap").classList.remove("fade");
+    $("stableActions").classList.remove("hidden");
+    brushesUsed.clear();
+    narrate(`…into the cosy stable. It smells of hay and clean straw. Time for a proper groom!`);
+    busy = false;
+  }, 3400);
+}
+
+$("outBtn").onclick = () => {
+  if(busy) return;
+  busy = true;
+  $("stableActions").classList.add("hidden");
+  $("sceneWrap").classList.add("fade");
+  setTimeout(()=>{
+    mode = "pasture";
+    resetTack();
+    $("stableBg").style.display = "none";
+    $("outdoor").style.display = "";
+    halterOn = false;
+    $("halterG").style.display = "none";
+    $("leadRope").style.display = "none";
+    $("collarBtn").innerHTML = "🪢 Head collar";
+    $("welcome").textContent = `${state.horse}'s Pasture`;
+    $("sceneWrap").classList.remove("fade");
+    $("pastureActions").classList.remove("hidden");
+    narrate(`You turn ${state.horse} out and slip off the head collar — off with a happy buck!`);
+    busy = false;
+  }, 800);
+};
+
+/* ---- grooming ---- */
+document.querySelectorAll(".brush").forEach(btn=>{
+  btn.onclick = ()=>{
+    const b = btn.dataset.brush;
+    animate("nudge");
+    burst(BRUSH_FX[b], 5, b==="hoof" ? 0.75 : 0.3);
+    const lines = BRUSHES[b];
+    narrate(lines[Math.floor(Math.random()*lines.length)].replaceAll("{h}", state.horse));
+    brushesUsed.add(b);
+    if(brushesUsed.size === Object.keys(BRUSHES).length){
+      setTimeout(()=>{
+        burst("⭐", 10, 0.2);
+        narrate(`${state.horse} gleams from nose to tail — a perfect, professional groom! ⭐`);
+        brushesUsed.clear();
+      }, 1800);
+    }
+  };
+});
+
+$("hayBtn").onclick = () => {
+  animate("graze"); burst("🌾",4);
+  narrate(`${state.horse} pulls a big mouthful of hay from the net and munches happily.`);
+};
+
+/* ---- tacking up ---- */
+function resetTack(){
+  tackStage = 0;
+  ["tackPad","tackSaddle","tackBridle"].forEach(id=>$(id).style.display="none");
+  $("tackBtn").innerHTML = TACK_STEPS[0].btn;
+  $("tackBtn").classList.remove("hidden");
+  $("rideBtn").classList.add("hidden");
+  $("mountedG").style.display = "none";
+}
+
+$("tackBtn").onclick = () => {
+  if(busy || tackStage >= 3) return;
+  tackStage++;
+  const step = TACK_STEPS[tackStage];
+  $(step.show).style.display = "";
+  if(step.show === "tackBridle"){ $("halterG").style.display = "none"; $("leadRope").style.display = "none"; }
+  narrate(step.narr.replaceAll("{h}", state.horse));
+  animate("nudge");
+  $("tackBtn").innerHTML = step.btn;
+  if(tackStage === 3){
+    $("tackBtn").classList.add("hidden");
+    $("rideBtn").classList.remove("hidden");
+  }
+};
+
+/* ---- riding ---- */
+$("rideBtn").onclick = () => {
+  if(busy) return;
+  busy = true;
+  $("stableActions").classList.add("hidden");
+  $("sceneWrap").classList.add("fade");
+  setTimeout(()=>{
+    mode = "riding";
+    $("stableBg").style.display = "none";
+    $("outdoor").style.display = "";
+    $("barnG").style.display = "none";
+    $("riderG").style.display = "none";
+    $("mountedG").style.display = "";
+    $("welcome").textContent = `Riding ${state.horse}`;
+    $("sceneWrap").classList.remove("fade");
+    $("ridingActions").classList.remove("hidden");
+    narrate(`You spring up, find your stirrups, and gather the reins. Ready!`);
+    busy = false;
+  }, 800);
+};
+
+function setGait(g){
+  const w = $("sceneWrap");
+  w.classList.remove("gait-walk","gait-trot","gait-canter");
+  if(g) w.classList.add("gait-"+g);
+}
+
+document.querySelectorAll(".gait").forEach(btn=>{
+  btn.onclick = ()=>{
+    if(mode!=="riding") return;
+    setGait(btn.dataset.gait);
+    narrate(GAITS[btn.dataset.gait].replaceAll("{h}", state.horse));
+    if(btn.dataset.gait==="canter") burst("💨", 4, 0.8);
+  };
+});
+
+$("haltBtn").onclick = () => {
+  if(mode!=="riding") return;
+  setGait(null);
+  narrate(`Whoa… ${state.horse} halts square and snorts. Perfectly done.`);
+};
+
+$("dismountBtn").onclick = () => {
+  if(busy) return;
+  busy = true;
+  setGait(null);
+  $("ridingActions").classList.add("hidden");
+  $("sceneWrap").classList.add("fade");
+  setTimeout(()=>{
+    mode = "stable";
+    $("outdoor").style.display = "none";
+    $("barnG").style.display = "";
+    $("stableBg").style.display = "";
+    $("riderG").style.display = "";
+    resetTack();
+    halterOn = true;
+    $("halterG").style.display = "";
+    $("welcome").textContent = `${state.horse}'s Stable`;
+    $("sceneWrap").classList.remove("fade");
+    $("stableActions").classList.remove("hidden");
+    narrate(`You hop down, run up your stirrups, and untack. ${state.horse} earned that hay net!`);
+    busy = false;
+  }, 800);
+};
+
+$("coatBtn").onclick = () => { if(!busy){ $("pasture").classList.remove("show"); showScreen("coatPick"); } };
+$("riderBtn").onclick = () => { if(!busy){ $("pasture").classList.remove("show"); showScreen("riderPick"); } };
+$("renameBtn").onclick = () => { if(!busy){ $("pasture").classList.remove("show"); showScreen("start"); } };
+
+if(state.coat && COATS[state.coat]) applyCoat(state.coat);
+applyRider();
+resetTack();
+
+/* came back from the 3D yard via the Stables button? skip the login, straight to the pasture */
+if(location.hash === "#stables" && state.player && state.horse && state.coat){
+  showScreen("pasture");
+  enterPasture(false);
+}
+</script>
+</body>
+</html>

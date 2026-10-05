@@ -1,0 +1,75 @@
+﻿Horse 3D models (horse.gltf, horse_white.gltf)
+By Quaternius (quaternius.com) - Ultimate Animated Animal Pack
+License: CC0 / Public Domain - free for personal and commercial use
+Downloaded 26 July 2026 with permission from Dad :)
+rider.gltf (Adventurer), poppy.gltf (Casual) - Quaternius Ultimate Modular Women Pack, CC0
+
+westernsaddle.glb  (the Western trail saddle in the shop)
+By "Poly by Google", from poly.pizza
+License: CC-BY - free to use WITH CREDIT, which is what this line is for.
+Downloaded 3 August 2026 with permission from Dad :)
+
+nature-model.js  (maple trees, sheep, cow, pig, pug dog)
+rider2-model.js  (the ready-made rider)
+All by Quaternius, from poly.pizza - CC0 / Public Domain
+
+props-model.js  (hay bale, barrel, fence, field gate, small barn, big barn,
+                 hen house, silo, windmill, pickup truck, western saddle)
+All by Quaternius - "Farm Buildings Bundle" + nature props, from poly.pizza
+License: CC0 / Public Domain
+Downloaded 3 August 2026 with permission from Dad :)
+
+openbarn.glb / barn-model.js  (the red barn the ponies live in)
+By Quaternius - "Open Barn", downloaded from poly.pizza
+License: CC0 / Public Domain - free for personal and commercial use
+Downloaded 3 August 2026 with permission from Dad :)
+
+stall-model.js  (the six loose boxes in the American barn)
+Based on "Horse Stall (Stable) Equestiran 3D Model"
+https://sketchfab.com/3d-models/horse-stall-stable-equestiran-3d-model-03e8919616784d9497d7f1fff8400232
+By horsekelpie2025 (https://sketchfab.com/horsekelpie2025)
+License: CC-BY-4.0 - free to use WITH CREDIT, which is what this line is for.
+Downloaded 4 August 2026 by Dad, from his own Sketchfab account.
+
+wolf.glb / deer.glb / rabbit.glb  (the wild animals out on the hacks)
+"WOLF / DEER / RABBIT - Realistic 3D Model (DEMO FREE)" by WildMesh 3D
+https://sketchfab.com/3d-models/wolf-realistic-3d-model-demo-free-8840b859a566485c874a27b1731e1db8
+https://sketchfab.com/3d-models/deer-realistic-3d-model-demo-free-3997d669818c4e0d8c8bcafb0a1ae2ee
+https://sketchfab.com/3d-models/rabbit-realistic-3d-model-demo-free-d70284ea0d7644988bdcd327c3ffb59a
+License: CC-BY-4.0 - free to use WITH CREDIT, which is what this line is for.
+Downloaded 4 August 2026 by Dad, from his own Sketchfab account.
+Textures were resized to 1024px and saved as JPEG to fit in a browser game.
+
+horsereal.glb  (extra horse breed)
+"Horse Rigged(Game Ready)" by abhayexe
+https://sketchfab.com/3d-models/horse-riggedgame-ready-bc64f4ff7966474ca9bacd42fa73a754
+License: CC-BY-4.0 - free to use WITH CREDIT, which is what this line is for.
+Downloaded 4 August 2026 by Dad, from his own Sketchfab account.
+
+horsewhite.glb  (Pearl - the white horse with the western saddle)
+"HORSE - Realistic 3D Model (DEMO FREE)" by WildMesh 3D
+https://sketchfab.com/3d-models/horse-realistic-3d-model-demo-free
+License: CC-BY-4.0 - free to use WITH CREDIT, which is what this line is for.
+Downloaded 4 August 2026 by Dad, from his own Sketchfab account.
+Textures resized (body/mane 1024, saddle and eye 512) and saved as JPEG.
+
+horsechestnut.glb / horsemidnight.glb  (the two big statue horses)
+"Horse 3d model free" and "Midnight black horse 3d model free" by iRahulRajput
+https://sketchfab.com/3d-models/horse-3d-model-free
+License: CC-BY-4.0 - free to use WITH CREDIT, which is what this line is for.
+Downloaded 4 August 2026 by Dad, from his own Sketchfab account.
+Both were around a million triangles. Simplified to ~70,000 by vertex
+clustering, and their textures resized to 512px, to fit in a browser game.
+They have no skeleton, so they stand still.
+
+jumps.glb  (the real show jumps in the yard planner)
+"Show jumping | Конкур | Horse jumping obstacles" by Every 3D
+https://sketchfab.com/3d-models/show-jumping-horse-jumping-obstacles-67ff46cf20504428a1f7cf7c2e73ed3d
+License: CC-BY-4.0 - free to use WITH CREDIT, which is what this line is for.
+Downloaded 4 August 2026 by Jill, from Dad's Sketchfab account.
+Normal and roughness maps dropped, colour maps resized 4096 -> 1024 JPEG.
+
+horsedapple.glb  (Dapple, the dappled grey standing in the top paddock)
+"Horse 3d model free" by iRahulRajput
+License: CC-BY-4.0 - credit required.
+Full detail, 956,154 triangles. Only unused vertex data was stripped.

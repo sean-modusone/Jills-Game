@@ -1,0 +1,19 @@
+# Jill's Game — settings that travel INSIDE the deploy zip.
+# (The netlify.toml one level up is for git-based deploys; this one is what
+#  applies when the zip is dragged onto Netlify, because the zip's root IS
+#  the published folder.)
+
+# The models never change under the same filename — when one is swapped for a
+# better model it gets a new name. So let the browser keep them for a year:
+# the first visit downloads them, every visit after that is instant.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# The game itself must never be cached, or Jill would keep playing an old copy
+# after a deploy.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

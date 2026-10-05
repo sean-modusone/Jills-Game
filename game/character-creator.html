@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jill's Character Creator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..600&display=swap">
+<link rel="stylesheet" href="design-system.css">
+<style>
+  *{box-sizing:border-box;-webkit-user-select:none;user-select:none;}
+  html,body{margin:0;height:100%;font-family:var(--font);color:var(--ink);}
+  body{background:linear-gradient(180deg,var(--sky-top),var(--sky-bot));display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+  header{text-align:center;padding:8px;}
+  header h1{margin:0;font-size:clamp(20px,3.4vw,30px);font-weight:600;text-shadow:2px 2px 0 #fff;}
+  #main{flex:1;display:flex;gap:14px;padding:0 14px 14px;min-height:0;}
+  #stageWrap{flex:0 0 320px;max-width:42vw;display:flex;flex-direction:column;align-items:center;gap:10px;}
+  #stage{background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:var(--r-card);box-shadow:0 var(--lift) 0 var(--ink);padding:14px;width:100%;display:flex;align-items:center;justify-content:center;aspect-ratio:1;}
+  #stage img{width:100%;height:100%;object-fit:contain;border-radius:16px;}
+  #nameRow{display:flex;gap:8px;width:100%;}
+  #nameRow input{flex:1;font-family:inherit;font-size:16px;padding:10px 12px;border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);text-align:center;background:var(--paper);color:var(--ink);outline:none;}
+  .actions{display:flex;gap:8px;width:100%;}
+  .btn{font-family:inherit;font-weight:600;color:var(--ink);border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);cursor:pointer;padding:11px 6px;font-size:14px;background:var(--paper);box-shadow:0 4px 0 var(--ink);transition:transform .08s;flex:1;}
+  .btn:hover{transform:translateY(-2px);}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink);}
+  .btn.big{background:var(--accent);color:#fff;}
+  .btn.gold{background:var(--gold);}
+  #panel{flex:1;background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:var(--r-card);box-shadow:0 var(--lift) 0 var(--ink);padding:14px 16px;overflow-y:auto;}
+  .cat{margin-bottom:16px;}
+  .cat h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;opacity:.7;display:flex;align-items:center;gap:6px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;}
+  .tile{position:relative;border:var(--stroke) solid var(--ink);border-radius:var(--r-tile);background:var(--tile);cursor:pointer;padding:3px;text-align:center;transition:transform .08s;}
+  .tile:hover{transform:translateY(-2px);}
+  .tile.sel{border-color:var(--accent);background:var(--accent-soft);}
+  .tile.sel:after{content:"\2713";position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);}
+  .tile img{width:100%;aspect-ratio:1;border-radius:9px;background:#f2ecfd;display:block;}
+  .tile span{font-size:10px;display:block;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .opts{display:flex;flex-wrap:wrap;gap:8px;}
+  .sw{width:44px;height:44px;border-radius:50%;border:var(--stroke) solid var(--ink);cursor:pointer;padding:0;transition:transform .07s;}
+  .sw:hover{transform:scale(1.08);}
+  .sw.sel{box-shadow:0 0 0 3px #fff inset,0 3px 0 var(--ink);}
+  .sw.none{background:var(--paper);font-size:11px;color:var(--ink);}
+  #flash{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:20px;font-size:15px;font-weight:600;opacity:0;transition:opacity .3s;z-index:9;pointer-events:none;}
+  .credit{font-size:11px;opacity:.55;text-align:center;margin-top:6px;}
+  .err{font-size:13px;color:#b03;text-align:center;padding:20px;}
+  @media(max-width:760px){#main{flex-direction:column;}#stageWrap{flex:none;max-width:none;}}
+</style>
+</head>
+<body>
+  <a class="ds-home" href="index.html">🏠 Home</a>
+  <header><h1>✨ Jill's Character Creator ✨</h1></header>
+  <div id="main">
+    <div id="stageWrap">
+      <div id="stage"><img id="avatar" alt="character"></div>
+      <div id="nameRow"><input id="charName" type="text" placeholder="Type a name…" maxlength="24"></div>
+      <div class="actions">
+        <button class="btn gold" id="randomBtn">🎲 Surprise</button>
+        <button class="btn" id="savePng">📷 Save</button>
+        <button class="btn big" id="saveLook">💾 Keep</button>
+      </div>
+      <div class="credit">Characters by DiceBear • free avatar art</div>
+    </div>
+    <div id="panel"></div>
+  </div>
+  <div id="flash"></div>
+
+<script>
+(function(){
+"use strict";
+const API="https://api.dicebear.com/9.x/avataaars/svg";
+
+/* ---- option values (DiceBear avataaars) ---- */
+const HAIR=[["shortFlat","Flat"],["shortCurly","Curly"],["shortWaved","Waved"],["shortRound","Round"],["theCaesar","Caesar"],["sides","Sides"],["dreads","Dreads"],["fro","Fro"],["bigHair","Big"],["bob","Bob"],["bun","Bun"],["curly","Curly L"],["curvy","Curvy"],["straight01","Straight"],["straight02","Straight 2"],["longButNotTooLong","Long"],["miaWallace","Mia"],["shavedSides","Shaved"],["frizzle","Frizzle"]];
+const HATS=[["hat","Hat"],["winterHat1","Beanie"],["turban","Turban"],["hijab","Hijab"]];
+const EYES=[["default","Normal"],["happy","Happy"],["wink","Wink"],["hearts","Hearts"],["squint","Squint"],["surprised","Surprised"],["side","Side"],["close","Closed"]];
+const MOUTH=[["default","Normal"],["smile","Smile"],["twinkle","Grin"],["tongue","Tongue"],["serious","Serious"],["sad","Sad"],["screamOpen","Wow"]];
+const GLASSES=[["none","None"],["round","Round"],["sunglasses","Shades"],["wayfarers","Wayfarer"],["prescription01","Specs"],["prescription02","Specs 2"]];
+const CLOTHING=[["shirtCrewNeck","Tee"],["shirtVNeck","V-neck"],["shirtScoopNeck","Scoop"],["hoodie","Hoodie"],["collarAndSweater","Collar"],["blazerAndShirt","Blazer"],["blazerAndSweater","Blazer 2"],["overall","Overall"],["graphicShirt","Graphic"]];
+const GRAPHIC=[["bear","Bear"],["deer","Deer"],["diamond","Diamond"],["pizza","Pizza"],["skull","Skull"],["skullOutline","Skull 2"],["hola","Hola"],["cumbia","Cumbia"],["bat","Bat"],["resist","Resist"]];
+const SKIN=[["ffdbb4","Light"],["edb98a","Fair"],["d08b5b","Tan"],["ae5d29","Brown"],["614335","Deep"]];
+const HAIRC=[["2c1b18","Black"],["724133","D.Brown"],["a55728","Auburn"],["b58143","Brown"],["d6b370","Blonde"],["c93305","Ginger"],["e8e1e1","Grey"],["ff8fb1","Pink"],["9b6dff","Purple"],["5aa9e6","Blue"]];
+const CLOTHESC=[["ff8fb1","Pink"],["5db6ff","Blue"],["ffd35c","Yellow"],["6ad0a8","Mint"],["9b7dff","Purple"],["ff8c5a","Orange"],["ff5d6c","Red"],["3a3f55","Navy"],["ffffff","White"],["262e33","Black"]];
+const BG=[["transparent","None"],["ffd5dc","Pink"],["b6e3f4","Blue"],["c0aede","Purple"],["d1f4d9","Mint"],["ffdfbf","Peach"],["fff3b0","Yellow"]];
+
+const state={seed:"Jill",name:"Jill",bg:"ffd5dc",skin:"",hairColor:"",top:"",eyes:"",mouth:"",glasses:"",clothing:"",clothesColor:"",graphic:""};
+
+function buildURL(s){
+  const p=["seed="+encodeURIComponent(s.seed||"Jill"),"radius=18"];
+  p.push("backgroundColor="+(s.bg&&s.bg!=="transparent"?s.bg:"transparent"));
+  if(s.skin)p.push("skinColor="+s.skin);
+  if(s.hairColor)p.push("hairColor="+s.hairColor);
+  if(s.top)p.push("top[]="+s.top);
+  if(s.eyes)p.push("eyes[]="+s.eyes);
+  if(s.mouth)p.push("mouth[]="+s.mouth);
+  if(s.glasses==="none")p.push("accessoriesProbability=0");
+  else if(s.glasses){p.push("accessories[]="+s.glasses);p.push("accessoriesProbability=100");}
+  if(s.graphic){p.push("clothing[]=graphicShirt");p.push("clothingGraphic[]="+s.graphic);}
+  else if(s.clothing)p.push("clothing[]="+s.clothing);
+  if(s.clothesColor)p.push("clothesColor="+s.clothesColor);
+  return API+"?"+p.join("&");
+}
+
+const avatar=document.getElementById("avatar"),stage=document.getElementById("stage");
+function renderMain(){
+  avatar.onerror=()=>{stage.innerHTML='<div class="err">😅 The character art needs an internet connection.<br><br>Please connect and reopen this page.</div>';};
+  avatar.src=buildURL(state);
+}
+
+/* ---- panel ---- */
+const panel=document.getElementById("panel");
+function tileGroup(field,items,autoLabel){
+  const grid=document.createElement("div");grid.className="grid";
+  const list=autoLabel?[["",autoLabel]].concat(items):items;
+  list.forEach(function(it){const val=it[0],label=it[1];
+    const b=document.createElement("button");b.className="tile"+(state[field]===val?" sel":"");
+    const ov=Object.assign({},state);ov[field]=val;
+    if(field==="graphic"&&val)ov.clothing="graphicShirt";
+    const im=document.createElement("img");im.loading="lazy";im.src=buildURL(ov);
+    const sp=document.createElement("span");sp.textContent=label;
+    b.appendChild(im);b.appendChild(sp);
+    b.onclick=function(){state[field]=val;refresh();};
+    grid.appendChild(b);
+  });
+  return grid;
+}
+function swatchRow(items,field,autoLabel){
+  const w=document.createElement("div");w.className="opts";
+  const list=autoLabel?[["",autoLabel]].concat(items):items;
+  list.forEach(function(it){const val=it[0],label=it[1];const b=document.createElement("button");
+    const sel=state[field]===val;
+    if(val===""||val==="transparent"){b.className="sw none"+(sel?" sel":"");b.textContent=label;}
+    else{b.className="sw"+(sel?" sel":"");b.style.background="#"+val;}
+    b.title=label;b.onclick=function(){state[field]=val;refresh();};w.appendChild(b);});
+  return w;
+}
+function cat(title,emoji,node){const c=document.createElement("div");c.className="cat";const h=document.createElement("h3");h.innerHTML="<span>"+emoji+"</span> "+title;c.appendChild(h);c.appendChild(node);return c;}
+function buildPanel(){
+  panel.innerHTML="";
+  panel.appendChild(cat("Hair &amp; hats","💇",tileGroup("top",HAIR.concat(HATS),"Auto")));
+  panel.appendChild(cat("Hair colour","🎨",swatchRow(HAIRC,"hairColor","Auto")));
+  panel.appendChild(cat("Skin","✋",swatchRow(SKIN,"skin","Auto")));
+  panel.appendChild(cat("Eyes","👁️",tileGroup("eyes",EYES,"Auto")));
+  panel.appendChild(cat("Mouth","😊",tileGroup("mouth",MOUTH,"Auto")));
+  panel.appendChild(cat("Glasses","🤓",tileGroup("glasses",GLASSES,"Auto")));
+  panel.appendChild(cat("Outfit","👕",tileGroup("clothing",CLOTHING,"Auto")));
+  panel.appendChild(cat("Outfit colour","🌈",swatchRow(CLOTHESC,"clothesColor","Auto")));
+  panel.appendChild(cat("Shirt picture","💖",tileGroup("graphic",GRAPHIC,"None")));
+  panel.appendChild(cat("Background","🟪",swatchRow(BG,"bg")));
+}
+function refresh(){buildPanel();renderMain();}
+
+/* ---- actions ---- */
+function randSeed(){return Math.random().toString(36).slice(2,10);}
+document.getElementById("randomBtn").onclick=function(){state.seed=randSeed();
+  // also randomise a few visible features
+  state.top=pick(HAIR.concat(HATS));state.eyes=pick(EYES);state.mouth=pick(MOUTH);state.clothing=pick(CLOTHING);state.clothesColor=pick(CLOTHESC);state.graphic="";refresh();flash("Surprise! 🎲");};
+function pick(a){return a[Math.floor(Math.random()*a.length)][0];}
+document.getElementById("charName").addEventListener("input",function(e){state.name=e.target.value;state.seed=e.target.value||"Jill";refresh();});
+document.getElementById("charName").value=state.name;
+document.getElementById("saveLook").onclick=function(){const d=JSON.stringify(Object.assign({},state),null,2);const b=new Blob([d],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=(state.name||"character")+".look.json";a.click();flash("Saved your character! 💾");};
+document.getElementById("savePng").onclick=async function(){
+  try{const res=await fetch(buildURL(state));const svgText=await res.text();
+    const blob=new Blob([svgText],{type:"image/svg+xml"});const url=URL.createObjectURL(blob);const img=new Image();
+    img.onload=function(){const cv=document.createElement("canvas");cv.width=600;cv.height=600;const ctx=cv.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,600,600);ctx.drawImage(img,0,0,600,600);URL.revokeObjectURL(url);cv.toBlob(function(bl){const a=document.createElement("a");a.href=URL.createObjectURL(bl);a.download=(state.name||"character")+".png";a.click();flash("Picture saved! 📷");});};
+    img.onerror=function(){flash("Couldn't save (need internet) 😅");};img.src=url;
+  }catch(e){flash("Couldn't save (need internet) 😅");}
+};
+let ft;function flash(m){const el=document.getElementById("flash");el.textContent=m;el.style.opacity="1";clearTimeout(ft);ft=setTimeout(function(){el.style.opacity="0";},1500);}
+
+window.__cc={buildURL,state,opts:{HAIR,HATS,EYES,MOUTH,GLASSES,CLOTHING,GRAPHIC}};
+refresh();
+})();
+</script>
+</body>
+</html>
