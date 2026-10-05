@@ -23,7 +23,8 @@
     "yard:quest":         { amount: null, dailyCap: null, what: "a yard rider's job" },
     "yard:perfect-jump":  { amount: 3,    dailyCap: null, what: "a perfect jump" },
     "yard:sat-the-spook": { amount: 2,    dailyCap: null, what: "staying on through a spook" },
-    "yard:calm-past-dog": { amount: 1,    dailyCap: null, what: "riding calmly past the dog" }
+    "yard:calm-past-dog": { amount: 1,    dailyCap: null, what: "riding calmly past the dog" },
+    "new-game:pick-up":   { amount: 1,    dailyCap: 50,   what: "picking up a coin in the new game (starter)" }
   };
 
   const LOG_LENGTH = 50;

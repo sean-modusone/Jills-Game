@@ -32,6 +32,8 @@ game/                 the published site (everything here goes live)
   horse-3d.html       pony yard game (~7,900 lines)
   jills-town-builder.html  town roleplay game (~3,300 lines)
   horse-game.html     2D login/coat/rider designer feeding horse-3d
+  new-game.html       Jill's next game (starter: shared coins, three.js r152; rename when it has a name)
+  shared/             shared kit: profile.js, wallet.js (docs/shared-kit.md)
   account.js          offline accounts, friend codes, yard visits, ride-together UI
   assets/             models (.glb + *-model.js), LICENSE.txt
   character-*.html, dollhouse.html, map-to-town.html, jills-world-builder.html   early prototypes (to archive)

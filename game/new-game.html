@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Jill's new game. Starter: shared coins + a 3D scene (three.js r152).
+     Rename this file, the title and the hub card once the game has a name. -->
+<title>My New Game ✨</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..600&display=swap">
+<link rel="stylesheet" href="design-system.css">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:var(--font);color:var(--ink);
+    background:linear-gradient(180deg,var(--sky-top),var(--sky-bot));}
+  canvas{display:block;}
+  .bar{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;}
+  .bar > *{pointer-events:auto;}
+  .pill{background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:20px;padding:6px 14px;
+    box-shadow:0 4px 0 var(--ink);font-weight:600;font-size:16px;text-decoration:none;color:inherit;}
+  .coins{background:var(--gold);}
+  #msg{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--paper);
+    border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);padding:8px 16px;box-shadow:0 4px 0 var(--ink);
+    font-size:15px;max-width:calc(100% - 32px);text-align:center;}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <a class="pill" href="index.html">🏠 Menu</a>
+    <span class="pill coins">🪙 <span id="coinCount">0</span></span>
+  </div>
+  <div id="msg">Arrow keys or WASD to walk. Grab the coins! 🪙</div>
+
+  <script src="account.js"></script>
+  <!-- the shared kit: one save and one coin purse for every game (docs/shared-kit.md) -->
+  <script src="shared/profile.js"></script>
+  <script src="shared/wallet.js"></script>
+  <script>window.__loadErr = null; addEventListener("error", e => { window.__loadErr = (e.message || "") + " @ " + (e.filename||"") + ":" + (e.lineno||""); });</script>
+
+  <script type="importmap">
+  { "imports": {
+      "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/"
+  } }
+  </script>
+  <script type="module">
+  import * as THREE from 'three';
+
+  /* ---- coins: always through the shared purse, never our own count ---- */
+  const coinEl = document.getElementById("coinCount");
+  const showCoins = () => { coinEl.textContent = JillWallet.balance().toLocaleString(); };
+  showCoins();
+  JillWallet.onChange(showCoins);
+
+  const msgEl = document.getElementById("msg");
+  let msgTimer = null;
+  function flash(text, ms){
+    msgEl.textContent = text;
+    clearTimeout(msgTimer);
+    msgTimer = setTimeout(() => { msgEl.textContent = ""; }, ms || 2500);
+  }
+
+  /* ---- scene ---- */
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  document.body.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+  addEventListener("resize", () => {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x88aa77, 0.9));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+  sun.position.set(8, 14, 6); sun.castShadow = true;
+  scene.add(sun);
+
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48), new THREE.MeshStandardMaterial({ color: 0x8fd16a }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+  scene.add(ground);
+
+  /* placeholder player — swap for the shared character once character.js exists */
+  const player = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.6, 6, 12), new THREE.MeshStandardMaterial({ color: 0xff6f91 }));
+  body.position.y = 0.65; body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), new THREE.MeshStandardMaterial({ color: 0xf2c9a0 }));
+  head.position.y = 1.45; head.castShadow = true;
+  player.add(body, head);
+  scene.add(player);
+
+  /* coins to pick up — shows the shared purse working */
+  const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.08, 24);
+  const coinMat = new THREE.MeshStandardMaterial({ color: 0xffc53d, metalness: 0.4, roughness: 0.3 });
+  const coins = [];
+  function dropCoin(){
+    const c = new THREE.Mesh(coinGeo, coinMat);
+    const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 18;
+    c.position.set(Math.cos(a) * r, 0.7, Math.sin(a) * r);
+    c.rotation.x = Math.PI / 2; c.castShadow = true;
+    scene.add(c); coins.push(c);
+  }
+  for(let i = 0; i < 8; i++) dropCoin();
+
+  /* debug handle for the console and tests */
+  window.__ng = { THREE, scene, camera, player, coins };
+
+  /* ---- controls ---- */
+  const keys = {};
+  addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; });
+  addEventListener("keyup",   e => { keys[e.key.toLowerCase()] = false; });
+
+  /* ---- loop ---- */
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const dx = (keys.arrowright || keys.d ? 1 : 0) - (keys.arrowleft || keys.a ? 1 : 0);
+    const dz = (keys.arrowdown  || keys.s ? 1 : 0) - (keys.arrowup   || keys.w ? 1 : 0);
+    if(dx || dz){
+      const len = Math.hypot(dx, dz);
+      player.position.x += dx / len * 5 * dt;
+      player.position.z += dz / len * 5 * dt;
+      player.rotation.y = Math.atan2(dx, dz);
+      const far = Math.hypot(player.position.x, player.position.z);
+      if(far > 29){ player.position.x *= 29 / far; player.position.z *= 29 / far; }
+    }
+
+    for(let i = coins.length - 1; i >= 0; i--){
+      const c = coins[i];
+      c.rotation.z += dt * 3;
+      if(c.position.distanceTo(player.position.clone().setY(0.7)) < 0.8){
+        scene.remove(c); coins.splice(i, 1);
+        const got = JillWallet.earn("new-game:pick-up");
+        if(got) flash("+" + got + " 🪙");
+        setTimeout(dropCoin, 1500);
+      }
+    }
+
+    camera.position.set(player.position.x, 7, player.position.z + 10);
+    camera.lookAt(player.position.x, 1, player.position.z);
+    renderer.render(scene, camera);
+  });
+  </script>
+</body>
+</html>
