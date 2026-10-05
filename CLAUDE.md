@@ -1,7 +1,7 @@
 # CLAUDE.md — Jill's Game
 
 Read this first. It replaces the per-PC Claude memory that used to hold this knowledge.
-Deeper notes: `docs/town-game.md`, `docs/yard-game.md`, `docs/multiplayer.md`, `docs/working-with-jill.md`, `docs/roadmap.md`.
+Deeper notes: `docs/shared-kit.md`, `docs/town-game.md`, `docs/yard-game.md`, `docs/multiplayer.md`, `docs/working-with-jill.md`, `docs/roadmap.md`.
 
 ## Who's who
 
@@ -20,6 +20,7 @@ Two games on a **shared engine**: the **pony yard** game and the **town** rolepl
 - three.js from CDN: **r128 global script** in the town game, **r152 ES modules** (import map, unpkg) in the yard game. Unifying these is a Phase 2 job.
 - Models: glTF/GLB, CC0 (Quaternius via poly.pizza) and CC-BY (Sketchfab, credited in `game/assets/LICENSE.txt`). Each model exists twice: `assets/x.glb` (used over http) and `assets/x-model.js` (base64, used from `file://`).
 - Most town art is drawn in code: canvas textures, rounded boxes, WebAudio synth sounds.
+- Shared kit: `game/shared/` (`JillProfile`, `JillWallet`) holds coins and other cross-game data. Games go through it, never `localStorage`, for shared things. Tests: `node tests/shared-kit.test.js`.
 - Saves: browser `localStorage`, per device. Keys: `jills-worlds-v1` / `jills-last-world` (town), `jillsHorseGame` (yard), `jillsAccount` (account — never clear it, the passcode can't be recovered).
 - Hosting: Netlify site `jills-game` (id `da802f96-7304-4ba9-ac4b-e450d191ef6e`), publish dir `game/`.
 

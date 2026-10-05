@@ -7,6 +7,7 @@ Full review and reasoning: the "Jill's Game — Review & Way Forward" doc (Claud
 - **Two games, shared engine:** the pony yard game and the town roleplay game. Over time they share one character (look, clothes, hair), one save/account and one code base.
 - **Ambition:** app stores one day. Choose licences, data handling and performance with that in mind (CC0/CC-BY only; no NonCommercial assets; keep data on-device unless Sean decides otherwise).
 - **Workflow:** Jill builds freely with Claude on her own branch; Sean reviews the preview and merges to `main` (which is live).
+- **Shared kit (5 Oct 2026):** one coin across all games; new games use three.js r152; new games go through the weekly pick; cloud saves wanted (service not yet chosen). See `docs/shared-kit.md`.
 - **Still open:** budget ceiling; date for Jill's pitch session.
 
 ## Pillars (the test for new ideas)
