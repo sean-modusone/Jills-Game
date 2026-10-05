@@ -216,11 +216,22 @@
   function makePenguin(){
     const root = new THREE.Group();
     const hips = new THREE.Group(); hips.position.y = 0.3; root.add(hips);
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 18), BLACK);
+    /* one egg-shaped body with the white tummy painted on (two overlapping shapes flicker) */
+    const geo = new THREE.SphereGeometry(0.5, 48, 36);
+    const pos = geo.attributes.position, cols = [];
+    const ink = new THREE.Color(0x1e2433), snowy = new THREE.Color(0xffffff), c = new THREE.Color();
+    for(let i = 0; i < pos.count; i++){
+      const x = pos.getX(i) / 0.5, y = pos.getY(i) / 0.5, z = pos.getZ(i) / 0.5;
+      /* how far inside the tummy patch this point is: front-facing, below the chin */
+      const oval = 1 - (x / 0.66) ** 2 - ((y + 0.15) / 0.72) ** 2;
+      const inside = Math.min((z - 0.3) / 0.1, oval / 0.12);
+      c.copy(ink).lerp(snowy, THREE.MathUtils.clamp(inside, 0, 1));
+      cols.push(c.r, c.g, c.b);
+    }
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
+    const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }));
     body.scale.set(1, 1.3, 0.9); body.position.y = 0.55;
-    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.44, 24, 18), WHITE);
-    belly.scale.set(0.86, 1.12, 0.5); belly.position.set(0, 0.5, 0.24);
-    hips.add(body, belly);
+    hips.add(body);
 
     const joints = {
       head:   at(new THREE.Group(), 0, 1.2, 0),
@@ -267,9 +278,13 @@
   const me = makePenguin();
   shadowy(me.root);
   scene.add(me.root);
+  /* round penguin parts get speckly self-shadows, so they cast shadows but don't catch them */
+  function noSelfShadow(g){ g.traverse(o => { if(o.isMesh) o.receiveShadow = false; }); }
+  noSelfShadow(me.root);
   function attach(p, k){
     const part = makePart(k);
     p.joints[k].add(part); p.parts[k] = part;
+    noSelfShadow(part);
   }
 
   /* hide the parts around the map, each with a blue light beam so it can be found */
@@ -384,7 +399,7 @@
       L.part.position.y = 1 + Math.sin(t * 2 + i) * 0.2;
       if(Math.hypot(L.g.position.x - me.root.position.x, L.g.position.z - me.root.position.z) < 1.3){
         scene.remove(L.g); lost.splice(i, 1);
-        attach(me, L.k); shadowy(me.root); showParts();
+        attach(me, L.k); showParts();
         const got = JillWallet.earn("new-game:found-part");
         const hint = { footL: "Feet make you faster!", footR: "Feet make you faster!",
                        flipL: "Find both flippers to belly-slide (hold Space)!", flipR: "Find both flippers to belly-slide (hold Space)!",
