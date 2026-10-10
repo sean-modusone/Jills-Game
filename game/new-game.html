@@ -36,6 +36,8 @@
   #prompt{position:fixed;left:50%;top:calc(50% + 44px);transform:translateX(-50%);background:var(--paper);
     border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);padding:6px 14px;font-weight:600;box-shadow:0 4px 0 var(--ink);pointer-events:none;}
   #prompt:empty{display:none;}
+  #look{position:fixed;left:50%;top:calc(50% - 70px);transform:translateX(-50%);background:var(--ink);color:#fff;
+    border-radius:var(--r-btn);padding:8px 16px;font-weight:600;pointer-events:none;white-space:nowrap;}
   #hpBox{position:fixed;left:16px;bottom:18px;display:flex;align-items:center;gap:8px;background:var(--paper);
     border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);padding:6px 12px;box-shadow:0 4px 0 var(--ink);font-weight:600;}
   #hpBar{width:160px;height:16px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:#f6d4d4;}
@@ -64,6 +66,7 @@
   <div id="msg">Oh no! Your penguin lost its body parts! 🐧 Follow the blue lights to find them. Open golden chests (E) for guns, and watch out for the storm!</div>
   <div id="info" class="pill"></div>
   <div id="cross"></div>
+  <div id="look">🖱️ Click the game to look around with the mouse</div>
   <div id="prompt"></div>
   <div id="hpBox">❤️ <div id="hpBar"><i id="hpFill"></i></div><span id="hpNum">100</span></div>
   <div id="inv"></div>
@@ -493,9 +496,11 @@
   function build(kind){
     if(buildCool > 0 || !alive) return;
     buildCool = 0.35;
-    const yaw = Math.round(camYaw / (Math.PI / 2)) * (Math.PI / 2);
+    placeBuild(kind, me.root.position, Math.round(camYaw / (Math.PI / 2)) * (Math.PI / 2), "me");
+  }
+  function placeBuild(kind, from, yaw, owner){
     const fx = Math.sin(yaw), fz = Math.cos(yaw), ahead = kind === "wall" ? 2.2 : 2.8;
-    const x = me.root.position.x + fx * ahead, z = me.root.position.z + fz * ahead;
+    const x = from.x + fx * ahead, z = from.z + fz * ahead;
     let mesh;
     if(kind === "wall"){
       mesh = new THREE.Mesh(new THREE.BoxGeometry(4, WALL_H, 0.3), BUILD_MAT);
@@ -508,7 +513,7 @@
     }
     mesh.castShadow = true; mesh.receiveShadow = true;
     scene.add(mesh);
-    const b = { kind, mesh, x, z, yaw, hp: 5, blocks: [] };
+    const b = { kind, mesh, x, z, yaw, hp: 5, blocks: [], owner };
     if(kind === "wall"){
       for(let t = -1.8; t <= 1.81; t += 0.6){
         const bl = { x: x + Math.cos(yaw) * t, z: z - Math.sin(yaw) * t, r: 0.4, h: WALL_H, build: true };
@@ -571,13 +576,13 @@
   /* ---- shots and snow puffs ---- */
   const shots = [], puffs = [];
   const shotBall = new THREE.SphereGeometry(1, 12, 8);
-  function fire(from, dir, w, byMe){
+  function fire(from, dir, w, owner){
     const W = WEAPONS[w];
     const m = new THREE.Mesh(shotBall, W.mat);
     m.position.copy(from);
     if(w === "blaster") m.scale.set(W.size, W.size, W.size * 4); else m.scale.setScalar(W.size);
     scene.add(m);
-    shots.push({ m, v: dir.clone().multiplyScalar(W.speed), w, byMe, life: 3 });
+    shots.push({ m, v: dir.clone().multiplyScalar(W.speed), w, owner, life: 3 });
   }
   const puffMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
   function puff(p, size, n){
@@ -616,70 +621,136 @@
     if(hp <= 0) lose();
   }
 
-  /* ---- the other penguins ---- */
-  const BOT_COLS = [0xd94848, 0x8a4fd8, 0x2f9e5b, 0xe86aa8, 0x2f6fd8, 0xe8892f];
-  const BOT_SPEED = 2.9, BOT_HURT = 8;
+  /* ---- the other penguins ----
+     Good bots: they race to chests for guns, pick the nearest enemy (you or
+     each other), keep a good distance for their weapon, dodge side to side,
+     jump, aim where you're going, and build a wall for cover when they're hit. */
+  const BOT_COLS = [0xd94848, 0x8a4fd8, 0x2f9e5b, 0xe86aa8, 0x2f6fd8, 0xe8892f, 0x2bb5b5, 0xd4b200, 0x6d6d80, 0x8b5a2b];
+  const BOT_SPEED = 3.6;
+  const HURTS_YOU = 0.45;   /* bots' shots hurt you less than they hurt each other, so it stays fair */
+  const RANGE = { snow: [7, 14], blaster: [9, 18], cannon: [9, 16] };
   const bots = [];
+  const meVel = new THREE.Vector3();
   BOT_COLS.forEach(col => {
     let s = null;
-    for(let k = 0; k < 20; k++){ const c = freeSpot(1.5); if(c && Math.hypot(c[0], c[1]) > 22){ s = c; break; } }
+    for(let k = 0; k < 30; k++){ const c = freeSpot(1.5); if(c && Math.hypot(c[0], c[1]) > 18){ s = c; break; } }
     if(!s) return;
     const p = makePenguin(col);
     for(const k in PART_INFO) attach(p, k, col);
     shadowy(p.root); noSelfShadow(p.root);
-    p.hips.add(at(gunModel("snow"), -0.62, 0.75, 0.3));
+    const botHand = at(new THREE.Group(), -0.62, 0.75, 0.3);
+    p.hips.add(botHand);
     p.root.position.set(s[0], 0, s[1]);
     scene.add(p.root);
-    bots.push({ p, hp: 100, alive: true, walkT: Math.random() * 6, target: null, retarget: 0,
-                cool: 2 + Math.random() * 2, side: Math.random() < 0.5 ? 1 : -1, flashT: 0 });
+    const b = { p, hand: botHand, hp: 100, alive: true, walkT: Math.random() * 6, target: null, retarget: 0,
+                cool: 1 + Math.random() * 2, side: 1, sideT: 0, flashT: 0, vy: 0, onGround: true,
+                weapon: "snow", ammo: { snow: Infinity, blaster: 0, cannon: 0 },
+                foe: null, foeT: 0, buildT: 0, vel: new THREE.Vector3() };
+    botHold(b);
+    bots.push(b);
   });
+  function botHold(b){ b.hand.clear(); b.hand.add(gunModel(b.weapon)); }
   const botsLeft = () => bots.filter(b => b.alive).length;
+  function nearestChestTo(pos, maxD){
+    let best = null, bd = maxD;
+    for(const c of chests){
+      if(c.open) continue;
+      const d = Math.hypot(c.g.position.x - pos.x, c.g.position.z - pos.z);
+      if(d < bd){ bd = d; best = c; }
+    }
+    return best;
+  }
 
-  function hurtBot(b, dmg, byMe){
+  /* by = "me", a bot, or null for the storm */
+  function hurtBot(b, dmg, by){
     if(!b.alive) return;
     b.hp -= dmg; b.flashT = 0.12;
-    if(byMe) sfx("hit");
-    if(b.hp <= 0) knockOut(b, byMe);
+    if(by === "me") sfx("hit");
+    if(by){
+      /* fight back, and maybe throw up a wall */
+      b.foe = by; b.foeT = 2;
+      const from = by === "me" ? me.root.position : by.p.root.position, pos = b.p.root.position;
+      if(b.buildT <= 0 && Math.random() < 0.45){
+        b.buildT = 5;
+        placeBuild("wall", pos, Math.round(Math.atan2(from.x - pos.x, from.z - pos.z) / (Math.PI / 2)) * (Math.PI / 2), b);
+      }
+    }
+    if(b.hp <= 0) knockOut(b, by);
   }
-  function knockOut(b, byMe){
+  function knockOut(b, by){
     b.alive = false;
     const p = b.p.root.position;
     puff(new THREE.Vector3(p.x, p.y + 0.8, p.z), 0.35, 14);
     scene.remove(b.p.root);
     sfx("poof");
     for(let k = 0; k < 3; k++) dropCoinAt(p.x + (Math.random() - 0.5) * 2.4, p.z + (Math.random() - 0.5) * 2.4, false);
-    if(byMe) kos++;
+    if(by === "me") kos++;
     const left = botsLeft();
     if(!ended && alive){
       if(!left) win();
-      else flash((byMe ? "💥 Knocked out a penguin! " : "🌀 The storm got a penguin! ") + left + " left.", 2500);
+      else flash((by === "me" ? "💥 You knocked out a penguin! " : by ? "💥 A penguin got knocked out! " : "🌀 The storm got a penguin! ") + left + " left.", 2500);
     }
   }
-  function botThrow(b, d){
-    const from = b.p.root.position.clone(); from.y += 1.0;
-    const target = me.root.position.clone(); target.y += 0.8;
-    const spread = 0.5 + d * 0.06;
+  function botShoot(b, fpos, fvel, d){
+    const W = WEAPONS[b.weapon];
+    const from = b.hand.getWorldPosition(new THREE.Vector3());
+    const flight = d / W.speed;
+    /* aim where the enemy is going to be, with a little wobble */
+    const target = new THREE.Vector3(fpos.x + fvel.x * flight, fpos.y + 0.8, fpos.z + fvel.z * flight);
+    const spread = 0.2 + d * 0.03;
     target.x += (Math.random() - 0.5) * spread * 2;
     target.z += (Math.random() - 0.5) * spread * 2;
-    target.y += (Math.random() - 0.5) * spread;
-    const t = d / WEAPONS.snow.speed;
-    target.y += 0.5 * WEAPONS.snow.grav * t * t;   /* throw a bit high so the arc lands */
-    fire(from, target.sub(from).normalize(), "snow", false);
+    target.y += (Math.random() - 0.5) * spread + 0.5 * W.grav * flight * flight;
+    fire(from, target.sub(from).normalize(), b.weapon, b);
+    if(b.weapon !== "snow" && --b.ammo[b.weapon] <= 0){ b.weapon = b.ammo.blaster ? "blaster" : b.ammo.cannon ? "cannon" : "snow"; botHold(b); }
+    b.cool = W.rate * (b.weapon === "blaster" ? 1.6 : 1.4) + Math.random() * 0.35;
   }
   function updateBot(b, dt, t){
     const pos = b.p.root.position;
-    const dx = me.root.position.x - pos.x, dz = me.root.position.z - pos.z, d = Math.hypot(dx, dz);
+    b.buildT -= dt;
+    /* who to fight: the nearest enemy, you or another penguin */
+    b.foeT -= dt;
+    if(b.foe === "me" && (!alive || ended)) b.foe = null;
+    if(b.foe && b.foe !== "me" && !b.foe.alive) b.foe = null;
+    if(b.foeT <= 0){
+      b.foeT = 0.5; b.foe = null;
+      let best = 30;
+      if(alive && !ended){ const d = Math.hypot(me.root.position.x - pos.x, me.root.position.z - pos.z) * 0.85; if(d < best){ best = d; b.foe = "me"; } }
+      for(const o of bots){
+        if(o === b || !o.alive) continue;
+        const d = Math.hypot(o.p.root.position.x - pos.x, o.p.root.position.z - pos.z);
+        if(d < best){ best = d; b.foe = o; }
+      }
+    }
+    const fpos = b.foe === "me" ? me.root.position : b.foe ? b.foe.p.root.position : null;
+    const fvel = b.foe === "me" ? meVel : b.foe ? b.foe.vel : null;
+    const fd = fpos ? Math.hypot(fpos.x - pos.x, fpos.z - pos.z) : Infinity;
+    const chest = b.weapon === "snow" ? nearestChestTo(pos, 35) : null;
+
     let mx = 0, mz = 0, face = null;
+    const goTo = (x, z) => { const dx = x - pos.x, dz = z - pos.z, d = Math.hypot(dx, dz) || 1; mx = dx / d; mz = dz / d; };
     if(Math.hypot(pos.x - storm.x, pos.z - storm.z) > storm.r - 2){
-      const sx = storm.x - pos.x, sz = storm.z - pos.z, sd = Math.hypot(sx, sz) || 1;
-      mx = sx / sd; mz = sz / sd;
-    } else if(alive && !ended && d < 24){
+      goTo(storm.x, storm.z);
+    } else if(fpos && fd < 26 && !(chest && fd > 12)){
+      const dx = fpos.x - pos.x, dz = fpos.z - pos.z, d = fd || 1;
       face = Math.atan2(dx, dz);
-      if(d > 10){ mx = dx / d; mz = dz / d; }
-      else if(d < 5){ mx = -dx / d; mz = -dz / d; }
-      else { mx = -dz / d * b.side; mz = dx / d * b.side; if(Math.random() < dt * 0.5) b.side *= -1; }
+      const [near, far] = RANGE[b.weapon];
+      if(d > far){ mx = dx / d; mz = dz / d; }
+      else if(d < near){ mx = -dx / d; mz = -dz / d; }
+      /* dodge side to side */
+      b.sideT -= dt;
+      if(b.sideT <= 0){ b.side = Math.random() < 0.5 ? 1 : -1; b.sideT = 0.5 + Math.random() * 1.3; }
+      mx += -dz / d * b.side * 0.9; mz += dx / d * b.side * 0.9;
+      if(b.onGround && Math.random() < dt * 0.5) b.vy = 7;
       b.cool -= dt;
-      if(b.cool <= 0){ b.cool = 1.4 + Math.random() * 1.6; botThrow(b, d); }
+      if(b.cool <= 0 && d < 28) botShoot(b, fpos, fvel, d);
+    } else if(chest){
+      goTo(chest.g.position.x, chest.g.position.z);
+      if(Math.hypot(chest.g.position.x - pos.x, chest.g.position.z - pos.z) < 1.7){
+        chest.open = true; chest.glow.visible = false;
+        const w = Math.random() < 0.6 ? "blaster" : "cannon";
+        b.ammo[w] += WEAPONS[w].ammo; b.weapon = w; botHold(b);
+      }
     } else {
       b.retarget -= dt;
       if(!b.target || b.retarget <= 0 || Math.hypot(b.target[0] - pos.x, b.target[1] - pos.z) < 1.5){
@@ -687,24 +758,27 @@
         b.target = [storm.x + Math.cos(a) * r, storm.z + Math.sin(a) * r];
         b.retarget = 6;
       }
-      const tx = b.target[0] - pos.x, tz = b.target[1] - pos.z, td = Math.hypot(tx, tz) || 1;
-      mx = tx / td; mz = tz / td;
+      goTo(b.target[0], b.target[1]);
     }
-    const moving = !!(mx || mz);
+    const len = Math.hypot(mx, mz), moving = len > 0.01;
     if(moving){
-      pos.x += mx * BOT_SPEED * dt; pos.z += mz * BOT_SPEED * dt;
+      b.vel.set(mx / len * BOT_SPEED, 0, mz / len * BOT_SPEED);
+      pos.x += b.vel.x * dt; pos.z += b.vel.z * dt;
       bump(pos, pos.y);
       b.walkT += dt * 11;
-    }
+    } else b.vel.set(0, 0, 0);
     const want = face !== null ? face : moving ? Math.atan2(mx, mz) : b.p.root.rotation.y;
     let turn = want - b.p.root.rotation.y;
     turn = Math.atan2(Math.sin(turn), Math.cos(turn));
     b.p.root.rotation.y += turn * Math.min(1, dt * 10);
-    pos.y = groundAt(pos.x, pos.z);
+    /* jumping and ramps */
+    const floor = groundAt(pos.x, pos.z);
+    b.vy -= 22 * dt; pos.y += b.vy * dt;
+    if(pos.y <= floor){ pos.y = floor; b.vy = 0; b.onGround = true; } else b.onGround = false;
     animate(b.p, moving, b.walkT, 0, 2, 0, t);
     b.flashT -= dt;
     b.p.body.material.emissive.setHex(b.flashT > 0 ? 0xffffff : 0x000000);
-    if(inStorm(pos)) hurtBot(b, STORM_HURT * dt, false);
+    if(inStorm(pos)) hurtBot(b, STORM_HURT * dt, null);
   }
 
   /* ---- winning and losing ---- */
@@ -715,6 +789,7 @@
     document.getElementById("endTitle").textContent = title;
     document.getElementById("endText").textContent = text;
     document.getElementById("cross").style.display = "none";
+    lookEl.style.display = "none";
     endBox.style.display = "block";
   }
   function win(){ endGame("🏆 Victory Royale!", "You beat all the penguins! Knockouts: " + kos); }
@@ -749,17 +824,30 @@
   });
   addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
   const canvas = renderer.domElement;
+  const lookEl = document.getElementById("look");
+  const locked = () => document.pointerLockElement === canvas;
   canvas.addEventListener("mousedown", e => {
     if(ended || e.button !== 0) return;
-    if(document.pointerLockElement !== canvas && canvas.requestPointerLock) canvas.requestPointerLock();
+    /* the first click grabs the mouse for looking around; after that, clicks shoot */
+    if(!locked() && canvas.requestPointerLock && !lockFailed){ canvas.requestPointerLock(); return; }
     shooting = true;
   });
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
   addEventListener("mouseup", e => { if(e.button === 0) shooting = false; });
   addEventListener("mousemove", e => {
-    if(document.pointerLockElement !== canvas) return;
+    /* locked mouse, or holding the right button and dragging */
+    if(!locked() && !(e.buttons & 2)) return;
     camYaw -= e.movementX * 0.0025;
     camPitch = THREE.MathUtils.clamp(camPitch + e.movementY * 0.002, -0.3, 0.8);
   });
+  let lockFailed = false;
+  const showLook = () => { lookEl.style.display = locked() || ended ? "none" : "block"; };
+  document.addEventListener("pointerlockchange", showLook);
+  document.addEventListener("pointerlockerror", () => {
+    lockFailed = true;
+    lookEl.textContent = "🖱️ Hold the right mouse button and drag to look around";
+  });
+  showLook();
   addEventListener("blur", () => { for(const k in keys) keys[k] = false; shooting = false; });
 
   function bump(pos, y){
@@ -824,10 +912,12 @@
     /* no feet: slow little hops. Both flippers: hold C to belly-slide */
     sliding = (moving && flippers && keys.c) ? Math.min(1, sliding + dt * 4) : Math.max(0, sliding - dt * 4);
     const speed = sliding > 0.5 ? 10 : [2.2, 3.4, 5.5][feet];
+    meVel.set(0, 0, 0);
     if(moving){
       const mx = fx * fwd + rx * side, mz = fz * fwd + rz * side, len = Math.hypot(mx, mz);
-      pos.x += mx / len * speed * dt;
-      pos.z += mz / len * speed * dt;
+      meVel.set(mx / len * speed, 0, mz / len * speed);
+      pos.x += meVel.x * dt;
+      pos.z += meVel.z * dt;
       bump(pos, pos.y);
       walkT += dt * (feet ? 11 : 7);
     }
@@ -862,7 +952,7 @@
       const from = hand.getWorldPosition(new THREE.Vector3());
       const flight = aimAt.distanceTo(from) / W.speed;
       aimAt.y += 0.5 * W.grav * flight * flight;
-      fire(from, aimAt.sub(from).normalize(), weapon, true);
+      fire(from, aimAt.sub(from).normalize(), weapon, "me");
       sfx(weapon);
       if(ammo[weapon] !== Infinity){
         ammo[weapon]--;
@@ -881,19 +971,21 @@
       if(s.w === "blaster") s.m.lookAt(tmp.copy(p).add(s.v));
       let hit = s.life <= 0 || p.y <= 0 || Math.hypot(p.x, p.z) > MAP;
       if(!hit && p.y < 3) hit = blockers.some(b => !b.build && Math.hypot(p.x - b.x, p.z - b.z) < b.r);
-      if(!hit && !s.byMe){
-        /* your walls stop their snowballs (yours fly through) */
-        const wall = builds.find(b => hitsWall(b, p, W.size));
+      if(!hit){
+        const wall = builds.find(b => b.owner !== s.owner && hitsWall(b, p, W.size));
         if(wall){ hit = true; if(--wall.hp <= 0){ puff(wall.mesh.position.clone(), 0.4, 12); removeBuild(wall); } }
-        else if(alive && Math.hypot(p.x - pos.x, p.y - (pos.y + 0.8), p.z - pos.z) < 0.75){ hit = true; hurtMe(BOT_HURT); }
       }
-      if(!hit && s.byMe){
-        const b = bots.find(b => b.alive && Math.hypot(p.x - b.p.root.position.x, p.y - (b.p.root.position.y + 0.8), p.z - b.p.root.position.z) < 0.8);
-        if(b){ hit = true; if(!W.splash) hurtBot(b, W.dmg, true); }
+      if(!hit && s.owner !== "me" && alive && Math.hypot(p.x - pos.x, p.y - (pos.y + 0.8), p.z - pos.z) < 0.75){
+        hit = true; if(!W.splash) hurtMe(W.dmg * HURTS_YOU);
+      }
+      if(!hit){
+        const b = bots.find(b => b.alive && b !== s.owner && Math.hypot(p.x - b.p.root.position.x, p.y - (b.p.root.position.y + 0.8), p.z - b.p.root.position.z) < 0.8);
+        if(b){ hit = true; if(!W.splash) hurtBot(b, W.dmg, s.owner); }
       }
       if(hit){
-        if(W.splash && s.byMe){
-          for(const b of bots) if(b.alive && Math.hypot(p.x - b.p.root.position.x, p.z - b.p.root.position.z) < W.splash) hurtBot(b, W.dmg, true);
+        if(W.splash){
+          for(const b of bots) if(b.alive && b !== s.owner && Math.hypot(p.x - b.p.root.position.x, p.z - b.p.root.position.z) < W.splash) hurtBot(b, W.dmg, s.owner);
+          if(s.owner !== "me" && alive && Math.hypot(p.x - pos.x, p.z - pos.z) < W.splash) hurtMe(W.dmg * HURTS_YOU);
           puff(p.clone(), 0.4, 16);
         } else puff(p.clone(), W.size * 0.8, 6);
         scene.remove(s.m); shots.splice(i, 1);
