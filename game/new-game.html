@@ -27,6 +27,32 @@
     border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);padding:8px 16px;box-shadow:0 4px 0 var(--ink);
     font-size:15px;max-width:calc(100% - 32px);text-align:center;}
   #msg:empty{display:none;}
+  #msg{bottom:78px;}
+  #info{position:fixed;top:62px;left:50%;transform:translateX(-50%);font-size:15px;pointer-events:none;}
+  #cross{position:fixed;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none;}
+  #cross::before,#cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 0 1.5px var(--ink);border-radius:1px;}
+  #cross::before{left:10px;top:0;width:2px;height:22px;}
+  #cross::after{top:10px;left:0;height:2px;width:22px;}
+  #prompt{position:fixed;left:50%;top:calc(50% + 44px);transform:translateX(-50%);background:var(--paper);
+    border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);padding:6px 14px;font-weight:600;box-shadow:0 4px 0 var(--ink);pointer-events:none;}
+  #prompt:empty{display:none;}
+  #hpBox{position:fixed;left:16px;bottom:18px;display:flex;align-items:center;gap:8px;background:var(--paper);
+    border:var(--stroke) solid var(--ink);border-radius:var(--r-btn);padding:6px 12px;box-shadow:0 4px 0 var(--ink);font-weight:600;}
+  #hpBar{width:160px;height:16px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:#f6d4d4;}
+  #hpBar i{display:block;height:100%;width:100%;background:#4cc36b;transition:width .15s;}
+  #inv{position:fixed;right:16px;bottom:18px;display:flex;gap:6px;}
+  #inv span{background:var(--paper);border:var(--stroke) solid var(--ink);border-radius:14px;padding:6px 10px;
+    font-size:14px;font-weight:600;opacity:.6;box-shadow:0 3px 0 var(--ink);}
+  #inv span.on{opacity:1;background:#ffe9a8;transform:translateY(-4px);}
+  #inv span.none{display:none;}
+  #stormTint,#hurt{position:fixed;inset:0;opacity:0;pointer-events:none;transition:opacity .3s;}
+  #stormTint{background:radial-gradient(circle,rgba(160,76,240,.15) 30%,rgba(120,40,200,.6));}
+  #hurt{background:radial-gradient(circle,transparent 45%,rgba(230,40,60,.5));}
+  #endBox{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:none;text-align:center;background:var(--paper);
+    border:var(--stroke) solid var(--ink);border-radius:20px;padding:22px 34px;box-shadow:0 6px 0 var(--ink);}
+  #endBox h2{margin:0 0 6px;font-size:32px;}
+  #endBox p{margin:0 0 16px;font-size:17px;}
+  #again{cursor:pointer;font-family:inherit;background:var(--gold);}
 </style>
 </head>
 <body>
@@ -35,7 +61,15 @@
     <div id="parts"></div>
     <span class="pill coins">🪙 <span id="coinCount">0</span></span>
   </div>
-  <div id="msg">Oh no! Your penguin lost its body parts! 🐧 Follow the blue lights to find them. Arrow keys or WASD to move.</div>
+  <div id="msg">Oh no! Your penguin lost its body parts! 🐧 Follow the blue lights to find them. Open golden chests (E) for guns, and watch out for the storm!</div>
+  <div id="info" class="pill"></div>
+  <div id="cross"></div>
+  <div id="prompt"></div>
+  <div id="hpBox">❤️ <div id="hpBar"><i id="hpFill"></i></div><span id="hpNum">100</span></div>
+  <div id="inv"></div>
+  <div id="stormTint"></div>
+  <div id="hurt"></div>
+  <div id="endBox"><h2 id="endTitle"></h2><p id="endText"></p><button id="again" class="pill">Play again</button></div>
 
   <!-- account screen switched off for now while the penguin game is being built -->
   <!-- <script src="account.js"></script> -->
@@ -214,13 +248,13 @@
   /* ---- the penguin: a little skeleton of joints, each body part hangs off one ----
      Built in code (not a downloaded model) so every part can come off and go back. */
   const BLACK = mat(0x1e2433), WHITE = mat(0xffffff), ORANGE = mat(0xff9a1f);
-  function makePenguin(){
+  function makePenguin(inkHex = 0x1e2433){
     const root = new THREE.Group();
     const hips = new THREE.Group(); hips.position.y = 0.3; root.add(hips);
     /* one egg-shaped body with the white tummy painted on (two overlapping shapes flicker) */
     const geo = new THREE.SphereGeometry(0.5, 48, 36);
     const pos = geo.attributes.position, cols = [];
-    const ink = new THREE.Color(0x1e2433), snowy = new THREE.Color(0xffffff), c = new THREE.Color();
+    const ink = new THREE.Color(inkHex), snowy = new THREE.Color(0xffffff), c = new THREE.Color();
     for(let i = 0; i < pos.count; i++){
       const x = pos.getX(i) / 0.5, y = pos.getY(i) / 0.5, z = pos.getZ(i) / 0.5;
       /* how far inside the tummy patch this point is: front-facing, below the chin */
@@ -242,7 +276,7 @@
       footR:  at(new THREE.Group(), -0.2, -0.28, 0.1)
     };
     for(const k in joints) hips.add(joints[k]);
-    return { root, hips, joints, parts: {} };
+    return { root, hips, joints, body, parts: {} };
   }
   /* each part is its own little model so it can sit on the map on its own */
   const PART_INFO = {
@@ -252,10 +286,13 @@
     footL: { label: "Left foot",     icon: "🦶" },
     footR: { label: "Right foot",    icon: "🦶" }
   };
-  function makePart(k){
+  const inkMats = {};
+  const inkMat = hex => inkMats[hex] || (inkMats[hex] = mat(hex));
+  function makePart(k, inkHex = 0x1e2433){
     const g = new THREE.Group();
+    const BODY = inkMat(inkHex);
     if(k === "head"){
-      const h = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 18), BLACK); h.position.y = 0.25;
+      const h = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 18), BODY); h.position.y = 0.25;
       const face = new THREE.Mesh(new THREE.SphereGeometry(0.26, 20, 14), WHITE); face.scale.set(1, 0.85, 0.6); face.position.set(0, 0.22, 0.17);
       const beak = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.26, 12), ORANGE); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.18, 0.4);
       g.add(h, face, beak);
@@ -265,7 +302,7 @@
         g.add(eye, shine);
       });
     } else if(k === "flipL" || k === "flipR"){
-      const f = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), BLACK);
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), BODY);
       f.scale.set(0.14, 0.7, 0.32); f.position.y = -0.32;
       g.add(f);
     } else {
@@ -282,8 +319,8 @@
   /* round penguin parts get speckly self-shadows, so they cast shadows but don't catch them */
   function noSelfShadow(g){ g.traverse(o => { if(o.isMesh) o.receiveShadow = false; }); }
   noSelfShadow(me.root);
-  function attach(p, k){
-    const part = makePart(k);
+  function attach(p, k, inkHex){
+    const part = makePart(k, inkHex);
     p.joints[k].add(part); p.parts[k] = part;
     noSelfShadow(part);
   }
@@ -322,24 +359,412 @@
   const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.08, 24);
   const coinMat = new THREE.MeshStandardMaterial({ color: 0xffc53d, metalness: 0.4, roughness: 0.3 });
   const coins = [];
-  function dropCoin(){
-    const s = freeSpot(1); if(!s) return;
+  function dropCoinAt(x, z, respawn){
     const c = new THREE.Mesh(coinGeo, coinMat);
-    c.position.set(s[0], 0.7, s[1]); c.rotation.x = Math.PI / 2; c.castShadow = true;
+    c.position.set(x, 0.7, z); c.rotation.x = Math.PI / 2; c.castShadow = true;
+    c.userData.respawn = respawn;
     scene.add(c); coins.push(c);
   }
+  function dropCoin(){ const s = freeSpot(1); if(s) dropCoinAt(s[0], s[1], true); }
   for(let i = 0; i < 12; i++) dropCoin();
 
+  /* ---- battle bits (Jill: "it's like Fortnite") ----
+     Camera behind the penguin, golden chests with guns, bot penguins that throw
+     snowballs back, ice walls and ramps you build, a storm that shrinks the map,
+     and dancing. */
+
+  /* little synth sounds, no files */
+  let actx = null;
+  function beep(f1, f2, dur, type, vol){
+    try {
+      actx = actx || new AudioContext();
+      const o = actx.createOscillator(), gn = actx.createGain(), t0 = actx.currentTime;
+      o.type = type || "square";
+      o.frequency.setValueAtTime(f1, t0); o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+      gn.gain.setValueAtTime(vol || 0.08, t0); gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+      o.connect(gn).connect(actx.destination); o.start(t0); o.stop(t0 + dur);
+    } catch(e){ console.error("sound", e); }
+  }
+  const SOUNDS = {
+    snow:    () => beep(500, 200, 0.12, "triangle"),
+    blaster: () => beep(1400, 300, 0.1, "square", 0.04),
+    cannon:  () => beep(220, 60, 0.35, "sawtooth", 0.1),
+    hit:     () => beep(900, 1300, 0.08, "triangle"),
+    ouch:    () => beep(300, 150, 0.15, "sawtooth", 0.06),
+    chest:   () => { beep(660, 990, 0.15, "triangle"); setTimeout(() => beep(990, 1320, 0.2, "triangle"), 120); },
+    build:   () => beep(180, 120, 0.12, "square", 0.06),
+    poof:    () => beep(600, 80, 0.4, "triangle", 0.1)
+  };
+  const sfx = n => SOUNDS[n] && SOUNDS[n]();
+
+  /* ---- weapons: snowballs forever, guns come out of chests ---- */
+  const WEAPONS = {
+    snow:    { label: "Snowballs",   icon: "❄️", dmg: 20, rate: 0.45, speed: 30, grav: 4, size: 0.16, color: 0xffffff },
+    blaster: { label: "Ice Blaster", icon: "🔫", dmg: 12, rate: 0.14, speed: 50, grav: 0, size: 0.09, color: 0x5cd6ff, ammo: 40 },
+    cannon:  { label: "Snow Cannon", icon: "💥", dmg: 60, rate: 0.9,  speed: 26, grav: 4, size: 0.32, color: 0xfff3c4, ammo: 6, splash: 2.8 }
+  };
+  for(const w in WEAPONS) WEAPONS[w].mat = new THREE.MeshBasicMaterial({ color: WEAPONS[w].color });
+  const ORDER = ["snow", "blaster", "cannon"];
+  const ammo = { snow: Infinity, blaster: 0, cannon: 0 };
+  let weapon = "snow";
+
+  function gunModel(w){
+    const g = new THREE.Group();
+    if(w === "snow"){
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), WHITE));
+    } else if(w === "blaster"){
+      g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.55), mat(0x3f7fd9)), 0, 0, 0.1));
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.4, 10),
+        new THREE.MeshStandardMaterial({ color: 0x9be8ff, emissive: 0x2aa8e0, emissiveIntensity: 0.6 }));
+      barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.03, 0.55); g.add(barrel);
+      g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.12), mat(0x24324a)), 0, -0.17, -0.02));
+    } else {
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.8, 14), mat(0xff8a2a));
+      tube.rotation.x = Math.PI / 2; tube.position.z = 0.2; g.add(tube);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.04, 8, 16), mat(0x24324a));
+      rim.position.z = 0.6; g.add(rim);
+    }
+    return shadowy(g);
+  }
+  /* the penguin's right side is -x (it faces +z) */
+  const hand = at(new THREE.Group(), -0.62, 0.75, 0.3);
+  me.hips.add(hand);
+  const invEl = document.getElementById("inv");
+  function showInv(){
+    invEl.innerHTML = "";
+    ORDER.forEach((w, i) => {
+      const s = document.createElement("span"), n = ammo[w];
+      s.textContent = (i + 1) + " " + WEAPONS[w].icon + " " + WEAPONS[w].label + (n === Infinity ? "" : " ×" + n);
+      s.className = (w === weapon ? "on" : "") + (n ? "" : " none");
+      invEl.appendChild(s);
+    });
+  }
+  function holdWeapon(){ hand.clear(); hand.add(gunModel(weapon)); showInv(); }
+  holdWeapon();
+
+  /* ---- golden chests ---- */
+  const chests = [];
+  const WOOD = mat(0x9a5b2e);
+  const GOLD = new THREE.MeshStandardMaterial({ color: 0xffc53d, metalness: 0.6, roughness: 0.3, emissive: 0x7a5200, emissiveIntensity: 0.5 });
+  const chestGlow = new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.22, depthWrite: false });
+  function makeChest(){
+    const g = new THREE.Group();
+    g.add(at(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.8), WOOD), 0, 0.3, 0));
+    g.add(at(new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.1, 0.84), GOLD), 0, 0.58, 0));
+    const lid = at(new THREE.Group(), 0, 0.62, -0.4);
+    lid.add(at(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 0.8), WOOD), 0, 0.15, 0.4));
+    lid.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.06), GOLD), 0, 0.1, 0.82));
+    g.add(lid);
+    shadowy(g);
+    const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 4, 16, 1, true), chestGlow);
+    glow.position.y = 2; g.add(glow);
+    return { g, lid, glow, open: false, lidT: 0 };
+  }
+  for(let i = 0; i < 8; i++){
+    const s = freeSpot(1.5); if(!s) continue;
+    const c = makeChest();
+    c.g.position.set(s[0], 0, s[1]); c.g.rotation.y = rnd() * 6;
+    scene.add(c.g); chests.push(c);
+    blockers.push({ x: s[0], z: s[1], r: 0.6 });
+  }
+  function nearestChest(){
+    let best = null, bd = 2.3;
+    for(const c of chests){
+      if(c.open) continue;
+      const d = Math.hypot(c.g.position.x - me.root.position.x, c.g.position.z - me.root.position.z);
+      if(d < bd){ bd = d; best = c; }
+    }
+    return best;
+  }
+  function tryChest(){
+    const c = nearestChest(); if(!c) return;
+    c.open = true; c.glow.visible = false;
+    const w = Math.random() < 0.6 ? "blaster" : "cannon";
+    ammo[w] += WEAPONS[w].ammo; weapon = w; holdWeapon();
+    flash("🎁 You got the " + WEAPONS[w].label + "! Click to shoot.", 3000);
+    sfx("chest");
+  }
+
+  /* ---- building: Q = ice wall, R = ramp ---- */
+  const builds = [];
+  const BUILD_MAT = new THREE.MeshStandardMaterial({ color: 0xbfe9ff, roughness: 0.25, transparent: true, opacity: 0.85 });
+  const RAMP_H = 2.6, WALL_H = 2.6;
+  let buildCool = 0;
+  function build(kind){
+    if(buildCool > 0 || !alive) return;
+    buildCool = 0.35;
+    const yaw = Math.round(camYaw / (Math.PI / 2)) * (Math.PI / 2);
+    const fx = Math.sin(yaw), fz = Math.cos(yaw), ahead = kind === "wall" ? 2.2 : 2.8;
+    const x = me.root.position.x + fx * ahead, z = me.root.position.z + fz * ahead;
+    let mesh;
+    if(kind === "wall"){
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(4, WALL_H, 0.3), BUILD_MAT);
+      mesh.position.set(x, WALL_H / 2, z);
+      mesh.rotation.y = yaw;
+    } else {
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, Math.hypot(4, RAMP_H)), BUILD_MAT);
+      mesh.position.set(x, RAMP_H / 2, z);
+      mesh.rotation.order = "YXZ"; mesh.rotation.set(-Math.atan2(RAMP_H, 4), yaw, 0);
+    }
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    scene.add(mesh);
+    const b = { kind, mesh, x, z, yaw, hp: 5, blocks: [] };
+    if(kind === "wall"){
+      for(let t = -1.8; t <= 1.81; t += 0.6){
+        const bl = { x: x + Math.cos(yaw) * t, z: z - Math.sin(yaw) * t, r: 0.4, h: WALL_H, build: true };
+        blockers.push(bl); b.blocks.push(bl);
+      }
+    }
+    builds.push(b);
+    if(builds.length > 30) removeBuild(builds[0]);
+    sfx("build");
+  }
+  function removeBuild(b){
+    scene.remove(b.mesh);
+    for(const bl of b.blocks){ const i = blockers.indexOf(bl); if(i >= 0) blockers.splice(i, 1); }
+    builds.splice(builds.indexOf(b), 1);
+  }
+  /* a point in a build's own space: x across, z along */
+  function local(b, x, z){
+    const dx = x - b.x, dz = z - b.z, c = Math.cos(b.yaw), s = Math.sin(b.yaw);
+    return [dx * c - dz * s, dx * s + dz * c];
+  }
+  function groundAt(x, z){
+    let h = 0;
+    for(const b of builds){
+      if(b.kind !== "ramp") continue;
+      const [lx, lz] = local(b, x, z);
+      if(Math.abs(lx) <= 2 && Math.abs(lz) <= 2) h = Math.max(h, (lz + 2) / 4 * RAMP_H);
+    }
+    return h;
+  }
+
+  /* ---- the storm ---- */
+  const storm = { x: (rnd() - 0.5) * 24, z: (rnd() - 0.5) * 24, r: MAP + 6, from: 0, to: 0 };
+  const STORM_STEPS = [[30, 46], [25, 26], [20, 12], [15, 4]];   /* [seconds of calm, new size] */
+  const SHRINK_TIME = 30;
+  let stormStep = 0, stormMode = "wait", stormTime = STORM_STEPS[0][0];
+  const stormWall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 40, 72, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xa04cf0, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false }));
+  stormWall.position.set(storm.x, 20, storm.z);
+  scene.add(stormWall);
+  function updateStorm(dt){
+    if(stormStep < STORM_STEPS.length){
+      stormTime -= dt;
+      if(stormMode === "wait" && stormTime <= 0){
+        stormMode = "shrink"; stormTime = SHRINK_TIME;
+        storm.from = storm.r; storm.to = STORM_STEPS[stormStep][1];
+        flash("🌀 The storm is closing in! Stay inside the circle.", 3000);
+      } else if(stormMode === "shrink"){
+        storm.r = storm.to + (storm.from - storm.to) * Math.max(0, stormTime / SHRINK_TIME);
+        if(stormTime <= 0){
+          stormStep++; stormMode = "wait";
+          stormTime = stormStep < STORM_STEPS.length ? STORM_STEPS[stormStep][0] : 0;
+        }
+      }
+    }
+    stormWall.scale.set(storm.r, 1, storm.r);
+  }
+  const inStorm = p => Math.hypot(p.x - storm.x, p.z - storm.z) > storm.r;
+  const STORM_HURT = 5;   /* per second */
+
+  /* ---- shots and snow puffs ---- */
+  const shots = [], puffs = [];
+  const shotBall = new THREE.SphereGeometry(1, 12, 8);
+  function fire(from, dir, w, byMe){
+    const W = WEAPONS[w];
+    const m = new THREE.Mesh(shotBall, W.mat);
+    m.position.copy(from);
+    if(w === "blaster") m.scale.set(W.size, W.size, W.size * 4); else m.scale.setScalar(W.size);
+    scene.add(m);
+    shots.push({ m, v: dir.clone().multiplyScalar(W.speed), w, byMe, life: 3 });
+  }
+  const puffMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
+  function puff(p, size, n){
+    const mtl = puffMat.clone(), g = new THREE.Group();
+    g.position.copy(p);
+    for(let k = 0; k < n; k++){
+      const m = new THREE.Mesh(shotBall, mtl);
+      m.scale.setScalar(size);
+      m.userData.v = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.8, Math.random() - 0.5).multiplyScalar(size * 14 + 1);
+      g.add(m);
+    }
+    scene.add(g); puffs.push({ g, mtl, life: 0.5 });
+  }
+  function hitsWall(b, p, size){
+    if(b.kind !== "wall" || p.y > WALL_H) return false;
+    const [lx, lz] = local(b, p.x, p.z);
+    return Math.abs(lx) < 2 && Math.abs(lz) < 0.15 + size;
+  }
+
+  /* ---- you ---- */
+  let hp = 100, alive = true, ended = false, kos = 0;
+  let camYaw = Math.PI, camPitch = 0.22, vy = 0, onGround = true, dance = 0, fireCool = 0, shooting = false;
+  me.root.rotation.y = Math.PI;
+  const hpFill = document.getElementById("hpFill"), hpNum = document.getElementById("hpNum");
+  const hurtEl = document.getElementById("hurt"), tintEl = document.getElementById("stormTint");
+  function showHp(){
+    hpFill.style.width = hp + "%";
+    hpFill.style.background = hp > 50 ? "#4cc36b" : hp > 25 ? "#f2b233" : "#e5484d";
+    hpNum.textContent = Math.ceil(hp);
+  }
+  let hurtTimer = 0;
+  function hurtMe(n, quiet){
+    if(!alive || ended) return;
+    hp = Math.max(0, hp - n); showHp();
+    if(!quiet){ sfx("ouch"); hurtEl.style.opacity = 1; clearTimeout(hurtTimer); hurtTimer = setTimeout(() => { hurtEl.style.opacity = 0; }, 150); }
+    if(hp <= 0) lose();
+  }
+
+  /* ---- the other penguins ---- */
+  const BOT_COLS = [0xd94848, 0x8a4fd8, 0x2f9e5b, 0xe86aa8, 0x2f6fd8, 0xe8892f];
+  const BOT_SPEED = 2.9, BOT_HURT = 8;
+  const bots = [];
+  BOT_COLS.forEach(col => {
+    let s = null;
+    for(let k = 0; k < 20; k++){ const c = freeSpot(1.5); if(c && Math.hypot(c[0], c[1]) > 22){ s = c; break; } }
+    if(!s) return;
+    const p = makePenguin(col);
+    for(const k in PART_INFO) attach(p, k, col);
+    shadowy(p.root); noSelfShadow(p.root);
+    p.hips.add(at(gunModel("snow"), -0.62, 0.75, 0.3));
+    p.root.position.set(s[0], 0, s[1]);
+    scene.add(p.root);
+    bots.push({ p, hp: 100, alive: true, walkT: Math.random() * 6, target: null, retarget: 0,
+                cool: 2 + Math.random() * 2, side: Math.random() < 0.5 ? 1 : -1, flashT: 0 });
+  });
+  const botsLeft = () => bots.filter(b => b.alive).length;
+
+  function hurtBot(b, dmg, byMe){
+    if(!b.alive) return;
+    b.hp -= dmg; b.flashT = 0.12;
+    if(byMe) sfx("hit");
+    if(b.hp <= 0) knockOut(b, byMe);
+  }
+  function knockOut(b, byMe){
+    b.alive = false;
+    const p = b.p.root.position;
+    puff(new THREE.Vector3(p.x, p.y + 0.8, p.z), 0.35, 14);
+    scene.remove(b.p.root);
+    sfx("poof");
+    for(let k = 0; k < 3; k++) dropCoinAt(p.x + (Math.random() - 0.5) * 2.4, p.z + (Math.random() - 0.5) * 2.4, false);
+    if(byMe) kos++;
+    const left = botsLeft();
+    if(!ended && alive){
+      if(!left) win();
+      else flash((byMe ? "💥 Knocked out a penguin! " : "🌀 The storm got a penguin! ") + left + " left.", 2500);
+    }
+  }
+  function botThrow(b, d){
+    const from = b.p.root.position.clone(); from.y += 1.0;
+    const target = me.root.position.clone(); target.y += 0.8;
+    const spread = 0.5 + d * 0.06;
+    target.x += (Math.random() - 0.5) * spread * 2;
+    target.z += (Math.random() - 0.5) * spread * 2;
+    target.y += (Math.random() - 0.5) * spread;
+    const t = d / WEAPONS.snow.speed;
+    target.y += 0.5 * WEAPONS.snow.grav * t * t;   /* throw a bit high so the arc lands */
+    fire(from, target.sub(from).normalize(), "snow", false);
+  }
+  function updateBot(b, dt, t){
+    const pos = b.p.root.position;
+    const dx = me.root.position.x - pos.x, dz = me.root.position.z - pos.z, d = Math.hypot(dx, dz);
+    let mx = 0, mz = 0, face = null;
+    if(Math.hypot(pos.x - storm.x, pos.z - storm.z) > storm.r - 2){
+      const sx = storm.x - pos.x, sz = storm.z - pos.z, sd = Math.hypot(sx, sz) || 1;
+      mx = sx / sd; mz = sz / sd;
+    } else if(alive && !ended && d < 24){
+      face = Math.atan2(dx, dz);
+      if(d > 10){ mx = dx / d; mz = dz / d; }
+      else if(d < 5){ mx = -dx / d; mz = -dz / d; }
+      else { mx = -dz / d * b.side; mz = dx / d * b.side; if(Math.random() < dt * 0.5) b.side *= -1; }
+      b.cool -= dt;
+      if(b.cool <= 0){ b.cool = 1.4 + Math.random() * 1.6; botThrow(b, d); }
+    } else {
+      b.retarget -= dt;
+      if(!b.target || b.retarget <= 0 || Math.hypot(b.target[0] - pos.x, b.target[1] - pos.z) < 1.5){
+        const a = Math.random() * Math.PI * 2, r = Math.random() * storm.r * 0.7;
+        b.target = [storm.x + Math.cos(a) * r, storm.z + Math.sin(a) * r];
+        b.retarget = 6;
+      }
+      const tx = b.target[0] - pos.x, tz = b.target[1] - pos.z, td = Math.hypot(tx, tz) || 1;
+      mx = tx / td; mz = tz / td;
+    }
+    const moving = !!(mx || mz);
+    if(moving){
+      pos.x += mx * BOT_SPEED * dt; pos.z += mz * BOT_SPEED * dt;
+      bump(pos, pos.y);
+      b.walkT += dt * 11;
+    }
+    const want = face !== null ? face : moving ? Math.atan2(mx, mz) : b.p.root.rotation.y;
+    let turn = want - b.p.root.rotation.y;
+    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+    b.p.root.rotation.y += turn * Math.min(1, dt * 10);
+    pos.y = groundAt(pos.x, pos.z);
+    animate(b.p, moving, b.walkT, 0, 2, 0, t);
+    b.flashT -= dt;
+    b.p.body.material.emissive.setHex(b.flashT > 0 ? 0xffffff : 0x000000);
+    if(inStorm(pos)) hurtBot(b, STORM_HURT * dt, false);
+  }
+
+  /* ---- winning and losing ---- */
+  const endBox = document.getElementById("endBox");
+  function endGame(title, text){
+    ended = true; shooting = false;
+    if(document.pointerLockElement) document.exitPointerLock();
+    document.getElementById("endTitle").textContent = title;
+    document.getElementById("endText").textContent = text;
+    document.getElementById("cross").style.display = "none";
+    endBox.style.display = "block";
+  }
+  function win(){ endGame("🏆 Victory Royale!", "You beat all the penguins! Knockouts: " + kos); }
+  function lose(){
+    alive = false;
+    puff(me.root.position.clone().setY(me.root.position.y + 0.8), 0.35, 14);
+    me.root.visible = false;
+    sfx("poof");
+    endGame("💥 Knocked out!", "You came #" + (botsLeft() + 1) + ". Knockouts: " + kos);
+  }
+  document.getElementById("again").addEventListener("click", () => location.reload());
+
   /* debug handle for the console and tests */
-  window.__ng = { THREE, scene, camera, me, lost, coins, blockers };
+  window.__ng = { THREE, scene, camera, me, lost, coins, blockers, chests, bots, builds, storm, shots,
+    get state(){ return { hp, alive, ended, kos, weapon, ammo: { ...ammo }, camYaw, stormStep, stormMode, stormTime }; },
+    aim(yaw, pitch){ camYaw = yaw; if(pitch !== undefined) camPitch = pitch; },
+    build, tryChest, fire: on => { shooting = on; }, hurtMe };
 
-  /* ---- controls ---- */
+  /* ---- controls: WASD moves, mouse aims (click the game first), click shoots ---- */
   const keys = {};
-  addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if(e.key === " ") e.preventDefault(); });
-  addEventListener("keyup",   e => { keys[e.key.toLowerCase()] = false; });
+  addEventListener("keydown", e => {
+    const k = e.key.toLowerCase();
+    keys[k] = true;
+    if(e.key === " " || k.startsWith("arrow")) e.preventDefault();
+    if(e.repeat || ended) return;
+    if(k === "1" || k === "2" || k === "3"){ const w = ORDER[+k - 1]; if(ammo[w]){ weapon = w; holdWeapon(); } }
+    if(k === "q") build("wall");
+    if(k === "r") build("ramp");
+    if(k === "b") dance = 3;
+    if(k === "e") tryChest();
+    if(k === " " && onGround && alive){ vy = 7.5; onGround = false; }
+  });
+  addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+  const canvas = renderer.domElement;
+  canvas.addEventListener("mousedown", e => {
+    if(ended || e.button !== 0) return;
+    if(document.pointerLockElement !== canvas && canvas.requestPointerLock) canvas.requestPointerLock();
+    shooting = true;
+  });
+  addEventListener("mouseup", e => { if(e.button === 0) shooting = false; });
+  addEventListener("mousemove", e => {
+    if(document.pointerLockElement !== canvas) return;
+    camYaw -= e.movementX * 0.0025;
+    camPitch = THREE.MathUtils.clamp(camPitch + e.movementY * 0.002, -0.3, 0.8);
+  });
+  addEventListener("blur", () => { for(const k in keys) keys[k] = false; shooting = false; });
 
-  function bump(pos){
+  function bump(pos, y){
     for(const b of blockers){
+      if(b.h !== undefined && y > b.h - 0.2) continue;
       const dx = pos.x - b.x, dz = pos.z - b.z, d = Math.hypot(dx, dz), min = b.r + 0.45;
       if(d < min && d > 0.0001){ pos.x = b.x + dx / d * min; pos.z = b.z + dz / d * min; }
     }
@@ -347,63 +772,167 @@
     if(far > MAP - 1){ pos.x *= (MAP - 1) / far; pos.z *= (MAP - 1) / far; }
   }
 
-  /* ---- loop ---- */
-  const clock = new THREE.Clock();
-  let walkT = 0, sliding = 0;
-  const camPos = new THREE.Vector3(0, 8, 12);
-  renderer.setAnimationLoop(() => {
-    const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-    const feet = (me.parts.footL ? 1 : 0) + (me.parts.footR ? 1 : 0);
-    const flippers = me.parts.flipL && me.parts.flipR;
-
-    const dx = (keys.arrowright || keys.d ? 1 : 0) - (keys.arrowleft || keys.a ? 1 : 0);
-    const dz = (keys.arrowdown  || keys.s ? 1 : 0) - (keys.arrowup   || keys.w ? 1 : 0);
-    const moving = !!(dx || dz);
-    /* no feet: slow little hops. Both flippers: hold Space to belly-slide */
-    sliding = (moving && flippers && keys[" "]) ? Math.min(1, sliding + dt * 4) : Math.max(0, sliding - dt * 4);
-    const speed = sliding > 0.5 ? 10 : [2.2, 3.4, 5.5][feet];
-    if(moving){
-      const len = Math.hypot(dx, dz);
-      me.root.position.x += dx / len * speed * dt;
-      me.root.position.z += dz / len * speed * dt;
-      const want = Math.atan2(dx, dz);
-      let turn = want - me.root.rotation.y;
-      turn = Math.atan2(Math.sin(turn), Math.cos(turn));
-      me.root.rotation.y += turn * Math.min(1, dt * 12);
-      bump(me.root.position);
-      walkT += dt * (feet ? 11 : 7);
-    }
-
-    /* waddle */
-    const step = Math.sin(walkT);
-    const j = me.joints;
+  /* waddle, hop, slide and dance for any penguin */
+  function animate(p, moving, walkT, sliding, feet, dancing, t){
+    const step = Math.sin(walkT), j = p.joints;
     if(feet){
-      me.hips.position.y = 0.3 + (moving ? Math.abs(step) * 0.06 : 0);
-      me.hips.rotation.z = moving ? step * 0.14 : 0;
+      p.hips.position.y = 0.3 + (moving ? Math.abs(step) * 0.06 : 0);
+      p.hips.rotation.z = moving ? step * 0.14 : 0;
       j.footL.rotation.x = moving ? Math.max(0, step) * -0.6 : 0;
       j.footR.rotation.x = moving ? Math.max(0, -step) * -0.6 : 0;
     } else {
       /* hopping on its tummy with no feet */
-      me.hips.position.y = 0.3 + (moving ? Math.abs(Math.sin(walkT * 0.9)) * 0.35 : 0);
-      me.hips.rotation.z = 0;
+      p.hips.position.y = 0.3 + (moving ? Math.abs(Math.sin(walkT * 0.9)) * 0.35 : 0);
+      p.hips.rotation.z = 0;
     }
     j.flipL.rotation.z = (moving ? 0.35 + Math.sin(walkT * 1.3) * 0.25 : 0.12) + sliding * 1.2;
-    j.flipR.rotation.z = -j.flipL.rotation.z;
-    me.hips.rotation.x = sliding * 1.35;
-    me.hips.position.y -= sliding * 0.2;
+    p.hips.rotation.x = sliding * 1.35;
+    p.hips.position.y -= sliding * 0.2;
     j.head.rotation.x = -sliding * 1.1;
+    p.hips.rotation.y = 0;
+    if(dancing > 0){
+      p.hips.rotation.y = Math.sin(t * 7) * 0.7;
+      p.hips.position.y = 0.3 + Math.abs(Math.sin(t * 9)) * 0.3;
+      p.hips.rotation.z = Math.sin(t * 9) * 0.2;
+      j.flipL.rotation.z = 1.6 + Math.sin(t * 14) * 0.6;
+      j.head.rotation.x = Math.sin(t * 9) * 0.2;
+    }
+    j.flipR.rotation.z = -j.flipL.rotation.z;
+  }
+
+  /* ---- loop ---- */
+  const clock = new THREE.Clock();
+  let walkT = 0, sliding = 0;
+  const camPos = new THREE.Vector3(), look = new THREE.Vector3(), tmp = new THREE.Vector3();
+  const ray = new THREE.Ray(), sphere = new THREE.Sphere();
+  const infoEl = document.getElementById("info"), promptEl = document.getElementById("prompt");
+  showHp();
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+    const feet = (me.parts.footL ? 1 : 0) + (me.parts.footR ? 1 : 0);
+    const flippers = me.parts.flipL && me.parts.flipR;
+    const pos = me.root.position;
+    buildCool -= dt; fireCool -= dt; dance -= dt;
+
+    if(keys.arrowleft) camYaw += dt * 2.4;
+    if(keys.arrowright) camYaw -= dt * 2.4;
+    const fx = Math.sin(camYaw), fz = Math.cos(camYaw), rx = -fz, rz = fx;
+    const fwd = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0);
+    const side = (keys.d ? 1 : 0) - (keys.a ? 1 : 0);
+    const moving = alive && !ended && !!(fwd || side);
+    if(moving) dance = 0;
+    /* no feet: slow little hops. Both flippers: hold C to belly-slide */
+    sliding = (moving && flippers && keys.c) ? Math.min(1, sliding + dt * 4) : Math.max(0, sliding - dt * 4);
+    const speed = sliding > 0.5 ? 10 : [2.2, 3.4, 5.5][feet];
+    if(moving){
+      const mx = fx * fwd + rx * side, mz = fz * fwd + rz * side, len = Math.hypot(mx, mz);
+      pos.x += mx / len * speed * dt;
+      pos.z += mz / len * speed * dt;
+      bump(pos, pos.y);
+      walkT += dt * (feet ? 11 : 7);
+    }
+    /* the penguin always faces where you're aiming */
+    let turn = camYaw - me.root.rotation.y;
+    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+    me.root.rotation.y += turn * Math.min(1, dt * 14);
+
+    /* jumping, ramps and falling */
+    const floor = groundAt(pos.x, pos.z);
+    vy -= 22 * dt;
+    pos.y += vy * dt;
+    if(pos.y <= floor){ pos.y = floor; vy = 0; onGround = true; }
+    else onGround = pos.y - floor < 0.05;
+
+    animate(me, moving, walkT, sliding, feet, dance, t);
+
+    /* shooting: aim where the crosshair is pointing */
+    if(shooting && fireCool <= 0 && alive && !ended){
+      const W = WEAPONS[weapon];
+      fireCool = W.rate;
+      camera.getWorldDirection(tmp);
+      ray.set(camera.position, tmp);
+      let reach = 40;
+      for(const b of bots){
+        if(!b.alive) continue;
+        sphere.set(b.p.root.position.clone().setY(b.p.root.position.y + 0.8), 0.8);
+        const hitAt = ray.intersectSphere(sphere, look);
+        if(hitAt){ const d = hitAt.distanceTo(camera.position); if(d < reach) reach = d; }
+      }
+      const aimAt = camera.position.clone().addScaledVector(tmp, reach);
+      const from = hand.getWorldPosition(new THREE.Vector3());
+      const flight = aimAt.distanceTo(from) / W.speed;
+      aimAt.y += 0.5 * W.grav * flight * flight;
+      fire(from, aimAt.sub(from).normalize(), weapon, true);
+      sfx(weapon);
+      if(ammo[weapon] !== Infinity){
+        ammo[weapon]--;
+        if(!ammo[weapon]){ weapon = "snow"; holdWeapon(); flash("Out of ammo! Find another chest. 🎁"); }
+        else showInv();
+      }
+      dance = 0;
+    }
+
+    /* shots flying */
+    for(let i = shots.length - 1; i >= 0; i--){
+      const s = shots[i], W = WEAPONS[s.w], p = s.m.position;
+      s.v.y -= W.grav * dt;
+      p.addScaledVector(s.v, dt);
+      s.life -= dt;
+      if(s.w === "blaster") s.m.lookAt(tmp.copy(p).add(s.v));
+      let hit = s.life <= 0 || p.y <= 0 || Math.hypot(p.x, p.z) > MAP;
+      if(!hit && p.y < 3) hit = blockers.some(b => !b.build && Math.hypot(p.x - b.x, p.z - b.z) < b.r);
+      if(!hit && !s.byMe){
+        /* your walls stop their snowballs (yours fly through) */
+        const wall = builds.find(b => hitsWall(b, p, W.size));
+        if(wall){ hit = true; if(--wall.hp <= 0){ puff(wall.mesh.position.clone(), 0.4, 12); removeBuild(wall); } }
+        else if(alive && Math.hypot(p.x - pos.x, p.y - (pos.y + 0.8), p.z - pos.z) < 0.75){ hit = true; hurtMe(BOT_HURT); }
+      }
+      if(!hit && s.byMe){
+        const b = bots.find(b => b.alive && Math.hypot(p.x - b.p.root.position.x, p.y - (b.p.root.position.y + 0.8), p.z - b.p.root.position.z) < 0.8);
+        if(b){ hit = true; if(!W.splash) hurtBot(b, W.dmg, true); }
+      }
+      if(hit){
+        if(W.splash && s.byMe){
+          for(const b of bots) if(b.alive && Math.hypot(p.x - b.p.root.position.x, p.z - b.p.root.position.z) < W.splash) hurtBot(b, W.dmg, true);
+          puff(p.clone(), 0.4, 16);
+        } else puff(p.clone(), W.size * 0.8, 6);
+        scene.remove(s.m); shots.splice(i, 1);
+      }
+    }
+    for(let i = puffs.length - 1; i >= 0; i--){
+      const f = puffs[i];
+      f.life -= dt;
+      f.g.children.forEach(m => { m.position.addScaledVector(m.userData.v, dt); m.scale.multiplyScalar(1 + dt * 2); });
+      f.mtl.opacity = Math.max(0, f.life / 0.5 * 0.9);
+      if(f.life <= 0){ scene.remove(f.g); f.mtl.dispose(); puffs.splice(i, 1); }
+    }
+
+    for(const b of bots) if(b.alive) updateBot(b, dt, t);
+
+    /* the storm hurts */
+    updateStorm(dt);
+    const stormy = alive && inStorm(pos);
+    tintEl.style.opacity = stormy ? 1 : 0;
+    if(stormy) hurtMe(STORM_HURT * dt, true);
+
+    /* chests */
+    for(const c of chests){
+      if(c.open && c.lidT < 1){ c.lidT = Math.min(1, c.lidT + dt * 3); c.lid.rotation.x = -1.9 * c.lidT; }
+      if(!c.open) c.glow.material.opacity = 0.16 + Math.sin(t * 3) * 0.08;
+    }
+    promptEl.textContent = alive && !ended && nearestChest() ? "Press E to open the chest 🎁" : "";
 
     /* find a lost part */
     for(let i = lost.length - 1; i >= 0; i--){
       const L = lost[i];
       L.part.rotation.y += dt * 1.5;
       L.part.position.y = 1 + Math.sin(t * 2 + i) * 0.2;
-      if(Math.hypot(L.g.position.x - me.root.position.x, L.g.position.z - me.root.position.z) < 1.3){
+      if(alive && Math.hypot(L.g.position.x - pos.x, L.g.position.z - pos.z) < 1.3){
         scene.remove(L.g); lost.splice(i, 1);
         attach(me, L.k); showParts();
         const got = JillWallet.earn("new-game:found-part");
         const hint = { footL: "Feet make you faster!", footR: "Feet make you faster!",
-                       flipL: "Find both flippers to belly-slide (hold Space)!", flipR: "Find both flippers to belly-slide (hold Space)!",
+                       flipL: "Find both flippers to belly-slide (hold C)!", flipR: "Find both flippers to belly-slide (hold C)!",
                        head: "Now you can see where you're going!" }[L.k];
         if(!lost.length) flash("🎉 Your penguin is all back together! +" + got + " 🪙", 5000);
         else flash("Found the " + PART_INFO[L.k].label.toLowerCase() + "! +" + got + " 🪙 " + hint, 4000);
@@ -414,13 +943,18 @@
     for(let i = coins.length - 1; i >= 0; i--){
       const c = coins[i];
       c.rotation.z += dt * 3;
-      if(Math.hypot(c.position.x - me.root.position.x, c.position.z - me.root.position.z) < 0.9){
+      if(alive && Math.hypot(c.position.x - pos.x, c.position.z - pos.z) < 0.9 && pos.y < 1.5){
         scene.remove(c); coins.splice(i, 1);
         const got = JillWallet.earn("new-game:pick-up");
         if(got) flash("+" + got + " 🪙");
-        setTimeout(dropCoin, 3000);
+        if(c.userData.respawn) setTimeout(dropCoin, 3000);
       }
     }
+
+    /* top info: penguins left and the storm clock */
+    const stormText = stormStep >= STORM_STEPS.length ? "" :
+      stormMode === "wait" ? " · 🌀 Storm in " + Math.ceil(stormTime) + "s" : " · 🌀 Storm closing!";
+    infoEl.textContent = "🐧 " + botsLeft() + " left · 💥 " + kos + stormText;
 
     /* snow drifts down around you */
     const pa = flakes.attributes.position.array;
@@ -429,17 +963,26 @@
       if(pa[i*3+1] < 0) pa[i*3+1] = 30;
     }
     flakes.attributes.position.needsUpdate = true;
-    snow.position.set(me.root.position.x, 0, me.root.position.z);
+    snow.position.set(pos.x, 0, pos.z);
 
     /* sun's shadows follow you */
-    sun.position.set(me.root.position.x + 20, 30, me.root.position.z + 12);
-    sun.target.position.copy(me.root.position);
+    sun.position.set(pos.x + 20, 30, pos.z + 12);
+    sun.target.position.copy(pos);
 
-    /* camera: no head = it's a bit foggy! */
+    /* camera over the right shoulder. No head = it's a bit foggy! */
     scene.fog.far = me.parts.head ? 95 : 40;
-    camPos.set(me.root.position.x, 7.5, me.root.position.z + 11);
-    camera.position.lerp(camPos, Math.min(1, dt * 5));
-    camera.lookAt(me.root.position.x, 1.2, me.root.position.z);
+    const cp = Math.cos(camPitch), sp = Math.sin(camPitch), eyeY = pos.y + 1.5;
+    /* pull the camera in if it would end up inside an iceberg, igloo or wall */
+    let dist = 7;
+    for(let k = 1; k <= 10; k++){
+      const d = 7 * k / 10, cx = pos.x - fx * d * cp + rx * 0.9 * k / 10, cz = pos.z - fz * d * cp + rz * 0.9 * k / 10, cy = eyeY + d * sp;
+      if(blockers.some(b => cy < (b.h !== undefined ? b.h : 4) && Math.hypot(cx - b.x, cz - b.z) < b.r + 0.3)){ dist = Math.max(1.2, d - 0.7); break; }
+    }
+    const shoulder = 0.9 * dist / 7;
+    camPos.set(pos.x - fx * dist * cp + rx * shoulder, Math.max(0.4, eyeY + dist * sp), pos.z - fz * dist * cp + rz * shoulder);
+    camera.position.copy(camPos);
+    look.set(camPos.x + fx * cp, camPos.y - sp, camPos.z + fz * cp);
+    camera.lookAt(look);
     renderer.render(scene, camera);
   });
   </script>
